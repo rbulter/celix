@@ -24,8 +24,8 @@
  *  \copyright	Apache License, Version 2.0
  */
 
-#ifndef CELIX_LAUNCHER_H
-#define CELIX_LAUNCHER_H
+#ifndef CELIX_LAUNCHER_H_
+#define CELIX_LAUNCHER_H_
 
 #include <stdio.h>
 #include "framework.h"
@@ -113,4 +113,4 @@ void celixLauncher_destroy(framework_t *framework);
 }
 #endif
 
-#endif //CELIX_LAUNCHER_H
+#endif //CELIX_LAUNCHER_H_

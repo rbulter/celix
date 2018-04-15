@@ -291,4 +291,18 @@ celix_bundle_state_e celix_bundle_getState(const bundle_t *bnd) {
 }
 
 
+celix_status_t bundle_getBundleLocation(bundle_pt bundle, const char **location) {
+	mock_c()->actualCall("bundle_getBundleLocation")
+			->withPointerParameters("bundle", bundle)
+			->withOutputParameter("location", location);
+	return mock_c()->returnValue().value.intValue;
+}
+
+
+celix_status_t bundle_getBundleCache(bundle_pt bundle, const char **cache) {
+	mock_c()->actualCall("bundle_getBundleCache")
+			->withPointerParameters("bundle", bundle)
+			->withOutputParameter("cache", cache);
+	return mock_c()->returnValue().value.intValue;
+}
 

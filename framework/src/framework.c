@@ -248,6 +248,10 @@ celix_status_t framework_create(framework_pt *framework, properties_pt config) {
             (*framework)->configurationMap = config;
             (*framework)->logger = logger;
 
+            //gen uuid
+            uuid_t uuid;
+            uuid_generate(uuid);
+            uuid_unparse(uuid, (*framework)->uuid);
 
             status = CELIX_DO_IF(status, bundle_create(&(*framework)->bundle));
             status = CELIX_DO_IF(status, arrayList_create(&(*framework)->globalLockWaitersList));
@@ -401,15 +405,7 @@ celix_status_t fw_init(framework_pt framework) {
 	}
 
 	if (status == CELIX_SUCCESS) {
-        /*create and store framework uuid*/
-        char uuid[37];
-
-	    uuid_t uid;
-        uuid_generate(uid);
-        uuid_unparse(uid, uuid);
-
-        properties_set(framework->configurationMap, (char*) OSGI_FRAMEWORK_FRAMEWORK_UUID, uuid);
-
+        properties_set(framework->configurationMap, (char*) OSGI_FRAMEWORK_FRAMEWORK_UUID, framework->uuid);
         framework->installedBundleMap = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
 	}
 
@@ -505,6 +501,14 @@ celix_status_t fw_init(framework_pt framework) {
     framework_releaseBundleLock(framework, framework->bundle);
 
 	return status;
+}
+
+FRAMEWORK_EXPORT const char* framework_getUUID(framework_t *framework) {
+    const char *uuid = NULL;
+    if (framework != NULL) {
+        uuid = framework->uuid;
+    }
+    return uuid;
 }
 
 celix_status_t framework_start(framework_pt framework) {
@@ -717,7 +721,7 @@ celix_status_t framework_getBundleEntry(framework_pt framework, bundle_pt bundle
         }
 
         if (access(e, F_OK) == 0) {
-            (*entry) = strndup(e, 1024*10);
+            (*entry) = strndup(e, 1024*1024*10);
         } else {
             (*entry) = NULL;
         }
@@ -2771,14 +2775,17 @@ void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use
     }
 }
 
-void celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+    bool called = false;
     if (bundleId >= 0) {
         //TODO get bundle lock without throwing errors framework_acquireBundleLock() -> a more simple lock ??
         bundle_t *bnd = framework_getBundleById(fw, bundleId);
         celix_bundle_state_e bndState = celix_bundle_getState(bnd);
         if (bndState == OSGI_FRAMEWORK_BUNDLE_ACTIVE) {
             use(callbackHandle, bnd);
+            called = true;
         }
         //TODO unlock
     }
+    return called;
 }

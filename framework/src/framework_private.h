@@ -48,9 +48,8 @@
 #include "celix_threads.h"
 
 struct framework {
-#ifdef WITH_APR
-    apr_pool_t *pool;
-#endif
+    char uuid[37];
+
     struct bundle * bundle;
     hash_map_pt installedBundleMap;
     hash_map_pt installRequestMap;
@@ -157,6 +156,6 @@ FRAMEWORK_EXPORT bundle_pt framework_getBundleById(framework_pt framework, long 
  **********************************************************************************************************************/
 
 void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
-void celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
+bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
 
 #endif /* FRAMEWORK_PRIVATE_H_ */

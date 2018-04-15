@@ -238,7 +238,7 @@ void celix_bundleContext_unregisterService(celix_bundle_context_t *ctx, long ser
  *
  * @param ctx The bundle context.
  * @param serviceName The required service name to track
- * @param serviceVersionRange Optional the service version range to track
+ * @param versionRange Optional the service version range to track
  * @param filter Optional the LDAP filter to use
  * @param callbackHandle The data pointer, which will be used in the callbacks
  * @param set is a required callback, which will be called when a new highest ranking service is set.
@@ -247,7 +247,7 @@ void celix_bundleContext_unregisterService(celix_bundle_context_t *ctx, long ser
 long celix_bundleContext_trackService(
         celix_bundle_context_t* ctx,
         const char* serviceName,
-        const char* versioRange,
+        const char* versionRange,
         const char* filter,
         void* callbackHandle,
         void (*set)(void* handle, void* svc)
@@ -258,7 +258,7 @@ long celix_bundleContext_trackService(
  *
  * @param ctx The bundle context.
  * @param serviceName The required service name to track
- * @param serviceVersionRange Optional the service version range to track
+ * @param versionRange Optional the service version range to track
  * @param filter Optional the LDAP filter to use
  * @param callbackHandle The data pointer, which will be used in the callbacks
  * @param add is a required callback, which will be called when a service is added and initially for the existing service.
@@ -268,7 +268,7 @@ long celix_bundleContext_trackService(
 long celix_bundleContext_trackServices(
         celix_bundle_context_t* ctx,
         const char* serviceName,
-        const char* versioRange,
+        const char* versionRange,
         const char* filter,
         void* callbackHandle,
         void (*add)(void* handle, void* svc),
@@ -312,6 +312,14 @@ typedef struct celix_service_tracker_options {
 long celix_bundleContext_trackServicesWithOptions(celix_bundle_context_t *ctx, const celix_service_tracker_options_t *opts);
 
 
+//TODO find services -> list of service ids.
+celix_array_list_t* celix_bundleContext_findServices(
+        celix_bundle_context_t *ctx,
+        const char *serviceName,
+        const char *versionRange,
+        const char *filter,
+        const char *lang
+);
 
 /**
  * Get and lock the service with the provided service id
@@ -439,8 +447,6 @@ typedef struct celix_bundle_tracker_options {
      */
     void (*onStopped)(void *handle, const celix_bundle_t *bundle);
 
-    //TODO callback for on installed, resolved, uninstalled ??
-
     /**
      *
      * @param handle    The handle, contains the value of the callbackHandle.
@@ -491,15 +497,12 @@ long celix_bundleContext_trackBundles(
  * @param use               The callback which will be called for the currently started bundles.
  *                          The bundle pointers are only guaranteed to be valid during the callback.
  */
-void celix_bundleContext_useBundle(
+bool celix_bundleContext_useBundle(
         celix_bundle_context_t *ctx,
         long bundleId,
         void *callbackHandle,
         void (*use)(void *handle, const celix_bundle_t *bundle)
 );
-
-//TODO add useBundleWithState (bit wise or?)
-
 
 //TODO except framework & own bundle
 /**

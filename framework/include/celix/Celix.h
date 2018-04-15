@@ -17,25 +17,20 @@
  *under the License.
  */
 
-#ifndef CELIX_CELIX_API_H_
-#define CELIX_CELIX_API_H_
+#ifndef CXX_CELIX_CELIX_H
+#define CXX_CELIX_CELIX_H
 
-#include "celix_utils_api.h"
+/**
+ * Celix C++ API header
+ */
 
-#include "celix_constants.h"
-#include "celix_bundle.h"
-#include "bundle_context.h"
-#include "service_registration.h"
-#include "service_factory.h"
-#include "service_reference.h"
-#include "service_tracker.h"
-#include "service_tracker_customizer.h"
-#include "listener_hook_service.h"
-#include "framework.h"
-#include "celix_framework_factory.h"
-#include "celix_launcher.h"
 
-#include "dm_dependency_manager.h"
-#include "dm_service_dependency.h"
+#include "celix/Constants.h"
+#include "celix/Properties.h"
+#include "celix/Bundle.h"
+#include "celix/IServiceFactory.h"
+#include "celix/BundleContext.h"
+#include "celix/Framework.h"
+#include "celix/FrameworkFactory.h"
 
-#endif //CELIX_CELIX_API_H_
+#endif //CXX_CELIX_CELIX_H

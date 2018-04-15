@@ -276,7 +276,7 @@ void celix_bundleContext_useBundles(
 }
 
 
-void celix_bundleContext_useBundle(
+bool celix_bundleContext_useBundle(
 		bundle_context_t *ctx,
 		long bundleId,
 		void *callbackHandle,
@@ -286,6 +286,7 @@ void celix_bundleContext_useBundle(
 			->withLongIntParameters("bundleId", bundleId)
 			->withPointerParameters("callbackHandle", callbackHandle)
 			->withPointerParameters("use", use);
+	return mock_c()->returnValue().value.boolValue;
 }
 
 void celix_bundleContext_stopTracker(bundle_context_t *ctx, long trackerId) {

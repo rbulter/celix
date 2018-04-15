@@ -17,25 +17,19 @@
  *under the License.
  */
 
-#ifndef CELIX_CELIX_API_H_
-#define CELIX_CELIX_API_H_
+#ifndef CXX_CELIX_ISERVICEFACTORY_H
+#define CXX_CELIX_ISERVICEFACTORY_H
 
-#include "celix_utils_api.h"
+#include "celix/Bundle.h"
 
-#include "celix_constants.h"
-#include "celix_bundle.h"
-#include "bundle_context.h"
-#include "service_registration.h"
-#include "service_factory.h"
-#include "service_reference.h"
-#include "service_tracker.h"
-#include "service_tracker_customizer.h"
-#include "listener_hook_service.h"
-#include "framework.h"
-#include "celix_framework_factory.h"
-#include "celix_launcher.h"
+namespace celix {
 
-#include "dm_dependency_manager.h"
-#include "dm_service_dependency.h"
+    typename<I>
+    class IServiceFactory {
+        virtual I* getService(IBundle &bundle) = 0;
+        virtual void ungetService(IBundle* bundle, I* svc) = 0;
+    };
 
-#endif //CELIX_CELIX_API_H_
+}
+
+#endif //CXX_CELIX_ISERVICEFACTORY_H

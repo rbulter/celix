@@ -20,11 +20,10 @@
 #ifndef CELIX_DM_PROPERTIES_H
 #define CELIX_DM_PROPERTIES_H
 
-#include <map>
-#include <string>
+#include "celix/Properties.h"
 
 namespace celix { namespace dm {
-    using Properties = std::map<std::string, std::string>;
+    using Properties = celix::Properties;
 }}
 
 #endif //CELIX_DM_PROPERTIES_H

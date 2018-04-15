@@ -280,6 +280,15 @@ function(add_celix_bundle)
     celix_bundle_headers(${BUNDLE_TARGET_NAME} ${BUNDLE_HEADERS})
 endfunction()
 
+function(add_celix_bundle_dependencies)
+    list(GET ARGN 0 TARGET)
+    list(REMOVE_AT ARGN 0)
+
+    foreach(BND IN ITEMS ${ARGN})
+        add_dependencies(${TARGET} ${BND}_bundle)
+    endforeach()
+endfunction()
+
 function(bundle_export_libs)
     message(DEPRECATION "bundle_export_libs is deprecated, use celix_bundle_export_libs instead.")
     celix_bundle_export_libs(${ARGN})

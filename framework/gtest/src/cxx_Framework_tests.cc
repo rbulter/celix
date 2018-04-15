@@ -17,25 +17,29 @@
  *under the License.
  */
 
-#ifndef CELIX_CELIX_API_H_
-#define CELIX_CELIX_API_H_
+#include "gtest/gtest.h"
 
-#include "celix_utils_api.h"
+#include "celix/Framework.h"
+#include "celix/FrameworkFactory.h"
 
-#include "celix_constants.h"
-#include "celix_bundle.h"
-#include "bundle_context.h"
-#include "service_registration.h"
-#include "service_factory.h"
-#include "service_reference.h"
-#include "service_tracker.h"
-#include "service_tracker_customizer.h"
-#include "listener_hook_service.h"
-#include "framework.h"
-#include "celix_framework_factory.h"
-#include "celix_launcher.h"
+class FrameworkTest : public ::testing::Test {
+public:
+    FrameworkTest() {
+        celix::Properties config{};
+        config["org.osgi.framework.storage.clean"] = "onFirstInit";
+        config["org.osgi.framework.storage"] = "test-cache"; //TODO tmp dir?
+        this->fw_ptr = std::unique_ptr<celix::Framework>{celix::FrameworkFactory::newFramework(std::move(config))};
+    }
 
-#include "dm_dependency_manager.h"
-#include "dm_service_dependency.h"
+    ~FrameworkTest(){}
 
-#endif //CELIX_CELIX_API_H_
+    celix::Framework& framework() { return *(this->fw_ptr); }
+private:
+    std::unique_ptr<celix::Framework> fw_ptr{nullptr};
+};
+
+TEST_F(FrameworkTest, TestFrameworkUUID) {
+    auto &fw = this->framework();
+    std::string uuid = fw.getUUID();
+    EXPECT_NE(uuid, "");
+}

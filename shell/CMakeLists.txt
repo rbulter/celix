@@ -23,7 +23,7 @@ if (SHELL)
 			$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
 			$<INSTALL_INTERFACE:include/celix/shell>
 	)
-        install(TARGETS shell_api EXPORT celix COMPONENT shell)
+	install(TARGETS shell_api EXPORT celix COMPONENT shell)
 	install(DIRECTORY include/ DESTINATION include/celix/shell COMPONENT shell)
 
     add_celix_bundle(shell

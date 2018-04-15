@@ -583,12 +583,12 @@ void celix_bundleContext_useBundles(
     celix_framework_useBundles(ctx->framework, callbackHandle, use);
 }
 
-void celix_bundleContext_useBundle(
+bool celix_bundleContext_useBundle(
         bundle_context_t *ctx,
         long bundleId,
         void *callbackHandle,
         void (*use)(void *handle, const bundle_t *bundle)) {
-    celix_framework_useBundle(ctx->framework, bundleId, callbackHandle, use);
+    return celix_framework_useBundle(ctx->framework, bundleId, callbackHandle, use);
 }
 
 static void bundleContext_cleanupBundleTracker(bundle_context_t *ctx) {

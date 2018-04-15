@@ -182,8 +182,12 @@ celix_status_t bundle_setContext(bundle_pt bundle, bundle_context_pt context) {
 	return CELIX_SUCCESS;
 }
 
-celix_status_t bundle_getEntry(bundle_pt bundle, const char* name, char** entry) {
-	return framework_getBundleEntry(bundle->framework, bundle, name, entry);
+celix_status_t bundle_getEntry(bundle_pt bundle, const char* name, char** out) {
+	char *entry = celix_bundle_getEntry(bundle, name);
+	if (out != NULL ) {
+		*out = entry;
+	}
+	return CELIX_SUCCESS;
 }
 
 celix_status_t bundle_getState(bundle_pt bundle, bundle_state_e *state) {
@@ -673,7 +677,6 @@ celix_status_t bundle_getFramework(bundle_pt bundle, framework_pt *framework) {
 }
 
 celix_status_t bundle_getBundleLocation(bundle_pt bundle, const char **location){
-
 	celix_status_t status;
 
 	bundle_archive_pt archive = NULL;
@@ -694,6 +697,37 @@ celix_status_t bundle_getBundleLocation(bundle_pt bundle, const char **location)
 }
 
 
+celix_status_t bundle_getBundleCache(bundle_pt bundle, const char **out) {
+    celix_status_t status;
+    
+    const char *cache = NULL;
+    bundle_archive_pt archive = NULL;
+    bundle_revision_pt rev = NULL;
+    
+    status = bundle_getArchive(bundle, &archive);
+    if (status != CELIX_SUCCESS){
+        printf("[ ERROR ]: Bundle - bundle_getBundleCache (BundleArchive) \n");
+        return status;
+    }
+    
+    status = bundleArchive_getCurrentRevision(archive, &rev);
+    if (status != CELIX_SUCCESS){
+        printf("[ ERROR ]:  Bundle - bundle_getBundleCache (BundleArchiveRevision) \n");
+        return status;
+    }
+    
+    status = bundleRevision_getRoot(rev, &cache);
+    if (status != CELIX_SUCCESS){
+        printf("[ ERROR ]:  Bundle - bundle_getBundleCache (BundleArchiveRevision) \n");
+        return status;
+    }
+    
+    if (out != NULL) {
+        *out = cache;
+    }
+    
+    return CELIX_SUCCESS;
+}
 
 
 
@@ -707,11 +741,12 @@ celix_status_t bundle_getBundleLocation(bundle_pt bundle, const char **location)
 long celix_bundle_getId(const bundle_t* bnd) {
 	long bndId = -1;
 	bundle_archive_pt archive = NULL;
-	bundle_getArchive((bundle_t*)bnd, &archive);
+	if (bnd != NULL) {
+		bundle_getArchive((bundle_t *) bnd, &archive);
+	}
 	if (archive != NULL) {
 		bundleArchive_getId(archive, &bndId);
 	}
-
 	if (bndId < 0) {
 		framework_logIfError(logger, CELIX_BUNDLE_EXCEPTION, NULL, "Failed to get bundle id");
 	}
@@ -719,5 +754,18 @@ long celix_bundle_getId(const bundle_t* bnd) {
 }
 
 celix_bundle_state_e celix_bundle_getState(const bundle_t *bnd) {
-	return bnd->state;
+	celix_bundle_state_e state = OSGI_FRAMEWORK_BUNDLE_UNKNOWN;
+	if (bnd != NULL) {
+		state = bnd->state;
+	}
+	return state;
 }
+
+char* celix_bundle_getEntry(const bundle_t *bnd, const char *relPath) {
+	char *entry = NULL;
+	if (bnd != NULL) {
+		framework_getBundleEntry(bnd->framework, (bundle_t*)bnd, relPath, &entry);
+	}
+	return entry;
+}
+

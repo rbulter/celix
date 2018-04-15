@@ -28,6 +28,7 @@
 #define SERVICE_REFERENCE_H_
 
 typedef struct serviceReference * service_reference_pt;
+typedef struct serviceReference service_reference_t;
 
 #include "celixbool.h"
 #include "array_list.h"

@@ -51,11 +51,15 @@ set(CELIX_MAJOR "2")
 set(CELIX_MINOR "2")
 set(CELIX_MICRO "0")
 
-option(ENABLE_TESTING "Enables unit/bundle testing" FALSE)
+option(ENABLE_TESTING "Enables unit testing using CPPUTEST" OFF)
+option(ENABLE_GTESTING "Enables unit testing using GTest" ON)
 
 if (ENABLE_TESTING)
 	enable_testing()
-endif()
+endif ()
+if (ENABLE_TESTING AND ENABLE_GTESTING)
+    include(cmake/celix_project/AddGTest.cmake)
+endif ()
 
 # Default bundle version
 set(DEFAULT_VERSION 1.0.0)
