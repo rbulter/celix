@@ -25,6 +25,8 @@ ExternalProject_Add(
 )
 
 ExternalProject_Get_Property(googletest_project source_dir binary_dir)
+
+file(MAKE_DIRECTORY ${source_dir}/googletest/include)
 add_library(gtest IMPORTED STATIC GLOBAL)
 add_dependencies(gtest googletest_project)
 set_target_properties(gtest PROPERTIES
@@ -32,6 +34,7 @@ set_target_properties(gtest PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${source_dir}/googletest/include"
 )
 
+file(MAKE_DIRECTORY ${source_dir}/googlemock/include)
 add_library(gmock IMPORTED STATIC GLOBAL)
 add_dependencies(gmock googletest_project)
 set_target_properties(gmock PROPERTIES

@@ -35,3 +35,7 @@ add_custom_command(TARGET cxx_framework_tests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_PROPERTY:cxx_fwm_test_bundle1,BUNDLE_FILE> ${CMAKE_CURRENT_BINARY_DIR}/bundle1.zip
 )
 add_celix_bundle_dependencies(cxx_framework_tests cxx_fwm_test_bundle1)
+
+
+add_test(NAME cxx_framework_tests COMMAND cxx_framework_tests)
+SETUP_TARGET_FOR_COVERAGE(cxx_framework_tests_cov cxx_framework_tests ${CMAKE_BINARY_DIR}/coverage/cxx_framework_tests/cxx_framework_tests)
