@@ -40,6 +40,20 @@ namespace celix {
                 this->c_bnd = nullptr;
             }
 
+            BundleImpl(const BundleImpl&) = delete;
+            BundleImpl& operator=(const BundleImpl&) = delete;
+
+            BundleImpl(BundleImpl&& rhs) : c_bnd{nullptr} {
+                using std::swap;
+                swap(this->c_bnd, rhs.c_bnd);
+            }
+
+            BundleImpl& operator=(BundleImpl&& rhs) {
+                using std::swap;
+                swap(this->c_bnd, rhs.c_bnd);
+                return *this;
+            }
+
             bool isSystemBundle() const noexcept  override {
                 bool r;
                 bundle_isSystemBundle(this->c_bnd, &r);

@@ -20,6 +20,9 @@
 #ifndef CELIX_IMPL_BUNDLECONTEXT_H
 #define CELIX_IMPL_BUNDLECONTEXT_H
 
+#include <mutex>
+#include <cstring>
+
 #include "bundle_context.h"
 #include "service_tracker.h"
 
@@ -56,6 +59,11 @@ namespace celix {
 
                 this->c_ctx = nullptr;
             }
+
+            BundleContextImpl(const BundleContextImpl&) = delete;
+            BundleContextImpl& operator=(const BundleContextImpl&) = delete;
+            BundleContextImpl(BundleContextImpl&&) = delete;
+            BundleContextImpl& operator=(BundleContextImpl&&) = delete;
 
             void unregisterService(long serviceId) noexcept override {
                 celix_bundleContext_unregisterService(this->c_ctx, serviceId);
@@ -163,7 +171,7 @@ namespace celix {
                     auto *entry = static_cast<TrackEntry*>(handle);
                     celix::Properties props = createFromCProps(c_props);
                     auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    auto bnd = celix::impl::BundleImpl(m_bnd);
+                    celix::impl::BundleImpl bnd{m_bnd};
                     (entry->set)(svc, props, bnd);
                 };
                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
@@ -203,14 +211,14 @@ namespace celix {
                     auto *entry = static_cast<TrackEntry*>(handle);
                     celix::Properties props = createFromCProps(c_props);
                     auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    auto bnd = celix::impl::BundleImpl(m_bnd);
+                    celix::impl::BundleImpl bnd{m_bnd};
                     (entry->add)(svc, props, bnd);
                 };
                 auto c_remove = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
                     auto *entry = static_cast<TrackEntry*>(handle);
                     celix::Properties props = createFromCProps(c_props);
                     auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    auto bnd = celix::impl::BundleImpl(m_bnd);
+                    celix::impl::BundleImpl bnd{m_bnd};
                     (entry->remove)(svc, props, bnd);
                 };
 
@@ -247,8 +255,8 @@ namespace celix {
                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
                     celix::Properties props = createFromCProps(c_props);
-                    celix_bundle_t *c_bnd = const_cast<celix_bundle_t*>(c_svcOwner);
-                    auto bnd = celix::impl::BundleImpl{c_bnd};
+                    celix_bundle_t *m_bnd = const_cast<celix_bundle_t*>(c_svcOwner);
+                    celix::impl::BundleImpl bnd{m_bnd};
                     (*fn)(svc, props, bnd);
                 };
                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
@@ -265,8 +273,8 @@ namespace celix {
                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
                     celix::Properties props = createFromCProps(c_props);
-                    celix_bundle_t *c_bnd = const_cast<celix_bundle_t*>(c_svcOwner);
-                    auto bnd = celix::impl::BundleImpl{c_bnd};
+                    celix_bundle_t *m_bnd = const_cast<celix_bundle_t*>(c_svcOwner);
+                    celix::impl::BundleImpl bnd{m_bnd};
                     (*fn)(svc, props, bnd);
                 };
                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();

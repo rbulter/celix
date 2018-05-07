@@ -38,6 +38,11 @@ namespace celix {
                 this->setFrameworkContext();
             }
 
+            FrameworkImpl(const FrameworkImpl&) = delete;
+            FrameworkImpl& operator=(const FrameworkImpl&) = delete;
+            FrameworkImpl(FrameworkImpl&&) = delete;
+            FrameworkImpl& operator=(FrameworkImpl&&) = delete;
+
             FrameworkImpl(celix::Properties config) : owner{true} {
                 //framework which also owns the underlining c framework
                 auto c_config = properties_create();
@@ -81,9 +86,9 @@ namespace celix {
 
             celix::Bundle& getFrameworkBundle() noexcept override {
                 if (this->fwBundle.size() == 0) {
-                    bundle_t* c_bnd = nullptr;
+                    celix_bundle_t* c_bnd = nullptr;
                     framework_getFrameworkBundle(this->c_fwm, &c_bnd);
-                    this->fwBundle.emplace_back(celix::impl::BundleImpl{c_bnd});
+                    this->fwBundle.emplace_back(c_bnd);
 
                 }
                 return this->fwBundle[0];
