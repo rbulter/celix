@@ -30,7 +30,9 @@
 
 namespace celix {
 
-    class BundleContext; //forward declaration
+    //forward declarations
+    class Bundle;
+    class BundleContext;
 
     struct BundleRegistrationOptions {
         std::string id{};
@@ -191,8 +193,7 @@ namespace celix {
          */
         virtual void stopTracker(long trackerId) noexcept  = 0;
 
-        //TODO
-        //virtual Bundle& getBundle() const noexcept = 0;
+        virtual Bundle& getBundle() noexcept = 0;
 
 
         //TODO

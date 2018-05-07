@@ -22,6 +22,7 @@
 
 #include <mutex>
 #include <cstring>
+#include <memory>
 
 #include "bundle_context.h"
 #include "service_tracker.h"
@@ -149,6 +150,16 @@ namespace celix {
                 };
                 return celix_bundleContext_useBundle(this->c_ctx, bundleId, (void*)(&use), c_use);
             }
+
+            Bundle& getBundle() noexcept override {
+                std::lock_guard<std::mutex> lock{this->mutex};
+                if (this->cachedBundle.size() == 0) {
+                    celix_bundle_t *c_bnd = nullptr;
+                    bundleContext_getBundle(this->c_ctx, &c_bnd);
+                    this->cachedBundle.emplace_back(c_bnd);
+                }
+                return this->cachedBundle[0];
+            };
 
         protected:
 
@@ -294,6 +305,7 @@ namespace celix {
 
             std::mutex mutex{};
             std::map<long,std::unique_ptr<TrackEntry>> trackEntries{};
+            std::vector<celix::impl::BundleImpl> cachedBundle{};
         };
     }
 }
