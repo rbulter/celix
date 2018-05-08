@@ -23,14 +23,20 @@
 #include "celix_framework_factory.h"
 #include "framework.h"
 
+#include "celix/impl/BundleContextImpl.h"
 #include "celix/impl/BundleImpl.h"
 
 namespace celix {
 
     namespace impl {
 
-        class FrameworkImpl :public celix::Framework {
+        class FrameworkImpl : public celix::Framework {
         public:
+            FrameworkImpl(celix_bundle_context_t *c_ctx) : owner{false} {
+                bundleContext_getFramework(c_ctx, &this->c_fwm);
+                this->setFrameworkContext();
+            }
+
             FrameworkImpl(framework_t *c_fw) : owner{false} {
                 //wrapper framework
                 this->c_fwm = c_fw;
@@ -102,7 +108,9 @@ namespace celix {
                 bundle_context_t *fwmCtx = nullptr;
                 framework_getFrameworkBundle(this->c_fwm, &fwmBundle);
                 bundle_getContext(fwmBundle, &fwmCtx);
-                this->bundleContextsCache.emplace(0, fwmCtx);
+                this->bundleContextsCache.emplace(std::piecewise_construct,
+                                                    std::forward_as_tuple(0L),
+                                                    std::forward_as_tuple(fwmCtx, *this));
             }
 
 

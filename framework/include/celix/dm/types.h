@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_TYPES_H
-#define CELIX_DM_TYPES_H
+#ifndef CXX_CELIX_DM_TYPES_H
+#define CXX_CELIX_DM_TYPES_H
 
 #include <map>
 #include <string>
@@ -87,4 +87,4 @@ namespace celix { namespace dm {
 
 }}
 
-#endif //CELIX_DM_TYPES_H
+#endif //CXX_CELIX_DM_TYPES_H

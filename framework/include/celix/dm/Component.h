@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_COMPONENT_H
-#define CELIX_DM_COMPONENT_H
+#ifndef CXX_CELIX_DM_COMPONENT_H
+#define CXX_CELIX_DM_COMPONENT_H
 
 #include "celix/dm/types.h"
 #include "dm_component.h"
@@ -231,4 +231,4 @@ namespace celix { namespace dm {
 
 #include "celix/dm/Component_Impl.h"
 
-#endif //CELIX_DM_COMPONENT_H
+#endif //CXX_CELIX_DM_COMPONENT_H

@@ -20,17 +20,18 @@
 #ifndef CELIX_PHASE1ACTIVATOR_H
 #define CELIX_PHASE1ACTIVATOR_H
 
+#include <celix/IBundleActivator.h>
 #include "celix/dm/DmActivator.h"
 #include "command.h"
 
 using namespace celix::dm;
 
-class Phase1Activator : public DmActivator {
-    command_service_t cmd {nullptr, nullptr};
+class Phase1Activator : public celix::IBundleActivator {
 public:
-    Phase1Activator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init();
-    virtual void deinit();
+    Phase1Activator(celix::BundleContext& _ctx);
+    virtual ~Phase1Activator();
+private:
+    command_service_t cmd {nullptr, nullptr};
 };
 
 #endif //CELIX_PHASE1ACTIVATOR_H

@@ -22,15 +22,15 @@
 #include "Phase2Activator.h"
 #include "log_service.h"
 
-using namespace celix::dm;
+#include "celix/BundleActivator.h"
 
 
-DmActivator* DmActivator::create(DependencyManager& mng) {
-    return new Phase2Activator(mng);
+celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
+    return new Phase2Activator{ctx};
 }
 
-
-void Phase2Activator::init() {
+Phase2Activator::Phase2Activator(celix::BundleContext& ctx) {
+    auto &mng = ctx.getDependencyManager();
 
     Properties props {};
     props["name"] = "phase2a";
@@ -52,6 +52,6 @@ void Phase2Activator::init() {
             .setCallbacks(&Phase2Cmp::setLogService);
 }
 
-void Phase2Activator::deinit() {
-
+Phase2Activator::~Phase2Activator() {
+    //nothing
 }

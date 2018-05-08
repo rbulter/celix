@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_PROPERTIES_H
-#define CELIX_DM_PROPERTIES_H
+#ifndef CXX_CELIX_DM_PROPERTIES_H
+#define CXX_CELIX_DM_PROPERTIES_H
 
 #include "celix/Properties.h"
 
@@ -26,4 +26,4 @@ namespace celix { namespace dm {
     using Properties = celix::Properties;
 }}
 
-#endif //CELIX_DM_PROPERTIES_H
+#endif //CXX_CELIX_DM_PROPERTIES_H

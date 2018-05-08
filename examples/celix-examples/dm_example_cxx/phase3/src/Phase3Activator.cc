@@ -21,17 +21,18 @@
 #include "Phase3Cmp.h"
 #include "Phase3Activator.h"
 
-using namespace celix::dm;
+#include "celix/BundleActivator.h"
 
 
-DmActivator* DmActivator::create(DependencyManager& mng) {
-    return new Phase3Activator(mng);
+celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
+    return new Phase3Activator{ctx};
 }
 
-void Phase3Activator::init() {
-    Phase3BaseActivator::init();
+Phase3Activator::Phase3Activator(celix::BundleContext& ctx) : Phase3BaseActivator{ctx.getDependencyManager()} {
     cmp.createServiceDependency<IPhase2>()
              .setRequired(false)
              .setFilter("(&(name=phase2a)(non-existing=*))")
              .setCallbacks(&Phase3Cmp::setPhase2a);
 }
+
+Phase3Activator::~Phase3Activator(){}

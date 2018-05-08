@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_ACTIVATOR_H
-#define CELIX_DM_ACTIVATOR_H
+#ifndef CXX_CELIX_DM_ACTIVATOR_H
+#define CXX_CELIX_DM_ACTIVATOR_H
 
 
 #include <utility>
@@ -94,4 +94,4 @@ namespace celix { namespace dm {
     };
 }}
 
-#endif //CELIX_DM_ACTIVATOR_H
+#endif //CXX_CELIX_DM_ACTIVATOR_H

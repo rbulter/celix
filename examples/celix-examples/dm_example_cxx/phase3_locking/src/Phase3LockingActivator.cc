@@ -23,14 +23,16 @@
 
 #include <memory>
 
-using namespace celix::dm;
+#include "celix/BundleActivator.h"
 
 
-DmActivator* DmActivator::create(DependencyManager& mng) {
-    return new Phase3LockingActivator(mng);
+
+celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
+    return new Phase3LockingActivator{ctx};
 }
 
-void Phase3LockingActivator::init() {
+Phase3LockingActivator::Phase3LockingActivator(celix::BundleContext& ctx) {
+    auto &mng = ctx.getDependencyManager();
     auto inst = std::shared_ptr<Phase3LockingCmp> {new Phase3LockingCmp {}};
 
     Component<Phase3LockingCmp>& cmp = mng.createComponent<Phase3LockingCmp>(inst)  //set inst using a shared ptr
@@ -40,3 +42,5 @@ void Phase3LockingActivator::init() {
             .setStrategy(DependencyUpdateStrategy::locking)
             .setCallbacks(&Phase3LockingCmp::addPhase2, &Phase3LockingCmp::removePhase2);
 }
+
+Phase3LockingActivator::~Phase3LockingActivator() {}

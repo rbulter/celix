@@ -22,12 +22,10 @@
 
 #include "Phase3BaseActivator.h"
 
-using namespace celix::dm;
-
 class Phase3Activator : public Phase3BaseActivator {
 public:
-    Phase3Activator(DependencyManager& mng) : Phase3BaseActivator(mng) {}
-    virtual void init();
+    Phase3Activator(celix::BundleContext& ctx);
+    ~Phase3Activator();
 };
 
 #endif //CELIX_PHASE2AACTIVATOR_H

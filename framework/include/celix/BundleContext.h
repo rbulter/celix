@@ -31,8 +31,11 @@
 namespace celix {
 
     //forward declarations
-    class Bundle;
     class BundleContext;
+    class Framework;
+    namespace dm {
+        class DependencyManager;
+    }
 
     struct BundleRegistrationOptions {
         std::string id{};
@@ -193,8 +196,11 @@ namespace celix {
          */
         virtual void stopTracker(long trackerId) noexcept  = 0;
 
-        virtual Bundle& getBundle() noexcept = 0;
+        virtual celix::Framework& getFramework() noexcept = 0;
 
+        virtual celix::Bundle& getBundle() noexcept = 0;
+
+        virtual celix::dm::DependencyManager& getDependencyManager() noexcept  = 0;
 
         //TODO
         //class celix::DependencyManager; //forward declaration TODO create
@@ -237,6 +243,6 @@ namespace celix {
 
 }
 
-#include "celix/impl/BundleContextImpl.h"
-
 #endif //CXX_CELIX_BUNDLECONTEXT_H
+
+#include "celix/impl/BundleContextImpl.h"

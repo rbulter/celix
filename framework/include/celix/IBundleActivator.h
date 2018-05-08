@@ -17,21 +17,18 @@
  *under the License.
  */
 
-#ifndef CXX_CELIX_CELIX_H
-#define CXX_CELIX_CELIX_H
+#ifndef CXX_CELIX_IBUNDLEACTIVATOR_H
+#define CXX_CELIX_IBUNDLEACTIVATOR_H
 
-/**
- * Celix C++ API header
- */
-
-
-#include "celix/Constants.h"
-#include "celix/Properties.h"
-#include "celix/Bundle.h"
-#include "celix/IServiceFactory.h"
 #include "celix/BundleContext.h"
-#include "celix/Framework.h"
-#include "celix/FrameworkFactory.h"
-#include "celix/dm/DependencyManager.h"
 
-#endif //CXX_CELIX_CELIX_H
+namespace celix {
+
+    class IBundleActivator {
+    public:
+        IBundleActivator(){};
+        virtual ~IBundleActivator(){};
+    };
+}
+
+#endif //CXX_CELIX_IBUNDLEACTIVATOR_H

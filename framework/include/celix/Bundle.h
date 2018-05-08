@@ -23,7 +23,6 @@
 #include "celix/Properties.h"
 
 namespace celix {
-    class Framework; //forward declaration
 
     enum class BundleState {
         UNKNOWN,
@@ -59,9 +58,6 @@ namespace celix {
 
         virtual celix::Properties getManifestAsProperties() const noexcept  = 0;
 
-        //TODO make ref?
-        virtual celix::Framework* getFramework() const noexcept = 0;
-
         virtual void start() noexcept = 0;
 
         virtual void stop() noexcept = 0;
@@ -72,6 +68,6 @@ namespace celix {
 
 }
 
-#include "celix/impl/BundleImpl.h"
-
 #endif //CXX_CELIX_BUNDLE_H
+
+#include "celix/impl/BundleImpl.h"

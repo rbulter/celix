@@ -28,9 +28,7 @@
 #include "celix/BundleContext.h"
 
 namespace celix {
-    /*TODO make framework a bundle ??
-     * personally I was never a fan of the context that the framework is also a bundle
-     */
+
     class Framework  {
     public:
         virtual ~Framework() = default;
@@ -46,6 +44,9 @@ namespace celix {
         virtual celix::BundleContext& getFrameworkContext() noexcept = 0;
         virtual celix::Bundle& getFrameworkBundle() noexcept = 0;
     };
+
 }
 
 #endif //CXX_CELIX_FRAMEWORK_H
+
+#include "celix/impl/FrameworkImpl.h"

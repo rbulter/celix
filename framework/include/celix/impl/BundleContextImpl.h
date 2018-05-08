@@ -17,8 +17,8 @@
  *under the License.
  */
 
-#ifndef CELIX_IMPL_BUNDLECONTEXT_H
-#define CELIX_IMPL_BUNDLECONTEXT_H
+#ifndef CELIX_IMPL_BUNDLECONTEXTIMPL_H
+#define CELIX_IMPL_BUNDLECONTEXTIMPL_H
 
 #include <mutex>
 #include <cstring>
@@ -28,6 +28,7 @@
 #include "service_tracker.h"
 
 #include "celix/impl/BundleImpl.h"
+#include "celix/dm/DependencyManager.h"
 
 namespace celix {
 
@@ -44,7 +45,7 @@ namespace celix {
 
         class BundleContextImpl : public celix::BundleContext {
         public:
-            BundleContextImpl(bundle_context_t *ctx) : c_ctx{ctx} {}
+            BundleContextImpl(bundle_context_t *ctx, celix::Framework& _fw) : c_ctx{ctx}, fw{_fw}, bnd{c_ctx}, dm{c_ctx} {}
 
             virtual ~BundleContextImpl() {
                 //NOTE no need to destroy the c bundle context -> done by c framework
@@ -151,15 +152,17 @@ namespace celix {
                 return celix_bundleContext_useBundle(this->c_ctx, bundleId, (void*)(&use), c_use);
             }
 
-            Bundle& getBundle() noexcept override {
-                std::lock_guard<std::mutex> lock{this->mutex};
-                if (this->cachedBundle.size() == 0) {
-                    celix_bundle_t *c_bnd = nullptr;
-                    bundleContext_getBundle(this->c_ctx, &c_bnd);
-                    this->cachedBundle.emplace_back(c_bnd);
-                }
-                return this->cachedBundle[0];
+            celix::Framework& getFramework() noexcept override {
+                return this->fw;
+            }
+
+            celix::Bundle& getBundle() noexcept override {
+                return this->bnd;
             };
+
+            celix::dm::DependencyManager& getDependencyManager() noexcept override {
+                return this->dm;
+            }
 
         protected:
 
@@ -295,7 +298,11 @@ namespace celix {
             }
 
         private:
+            //initialized in ctor
             bundle_context_t *c_ctx;
+            celix::Framework& fw;
+            celix::impl::BundleImpl bnd;
+            celix::dm::DependencyManager dm;
 
             struct TrackEntry {
                 std::function<void(void *, const celix::Properties &, const celix::Bundle &)> set{};
@@ -305,9 +312,8 @@ namespace celix {
 
             std::mutex mutex{};
             std::map<long,std::unique_ptr<TrackEntry>> trackEntries{};
-            std::vector<celix::impl::BundleImpl> cachedBundle{};
         };
     }
 }
 
-#endif //CELIX_IMPL_BUNDLECONTEXT_H
+#endif //CELIX_IMPL_BUNDLECONTEXTIMPL_H

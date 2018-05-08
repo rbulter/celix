@@ -29,10 +29,11 @@ namespace celix {
     namespace impl {
         class BundleImpl : public celix::Bundle {
         public:
+            BundleImpl(celix_bundle_context_t *c_ctx) : c_bnd{nullptr} {
+                bundleContext_getBundle(c_ctx, &this->c_bnd);
+            }
+
             BundleImpl(celix_bundle_t *b) : c_bnd{b} {
-                framework_t *c_fw{nullptr};
-                bundle_getFramework(this->c_bnd, &c_fw);
-                //this->fw = std::unique_ptr<celix::impl::Framework>{new celix::impl::Framework(c_fw, false)};
             }
 
             virtual ~BundleImpl() {
@@ -135,11 +136,6 @@ namespace celix {
                 return celix::Properties{}; //TODO
             }
 
-            celix::Framework* getFramework() const noexcept override {
-//                return this->fw;
-                return nullptr; //TODO
-            }
-
             void start() noexcept override {
                 bundle_start(this->c_bnd);
             }
@@ -176,8 +172,6 @@ namespace celix {
             };
 
             celix_bundle_t *c_bnd;
-//            framework_t *c_fw{nullptr};
-//            std::unique_ptr<celix::impl::Framework> fw{nullptr};
         };
     }
 }

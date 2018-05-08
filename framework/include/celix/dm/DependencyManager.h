@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_DEPENDENCYMANAGER_H
-#define CELIX_DM_DEPENDENCYMANAGER_H
+#ifndef CXX_CELIX_DM_DEPENDENCYMANAGER_H
+#define CXX_CELIX_DM_DEPENDENCYMANAGER_H
 
 
 #include "celix/dm/types.h"
@@ -146,4 +146,4 @@ namespace celix { namespace dm {
 
 #include "celix/dm/DependencyManager_Impl.h"
 
-#endif //CELIX_DM_DEPENDENCYMANAGER_H
+#endif //CXX_CELIX_DM_DEPENDENCYMANAGER_H

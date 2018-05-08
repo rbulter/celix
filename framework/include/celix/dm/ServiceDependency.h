@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef CELIX_DM_SERVICEDEPENDENCY_H
-#define CELIX_DM_SERVICEDEPENDENCY_H
+#ifndef CXX_CELIX_DM_SERVICEDEPENDENCY_H
+#define CXX_CELIX_DM_SERVICEDEPENDENCY_H
 
 #include "dm_service_dependency.h"
 #include "celix/dm/types.h"
@@ -323,4 +323,4 @@ namespace celix { namespace dm {
 #include "celix/dm/ServiceDependency_Impl.h"
 
 
-#endif //CELIX_DM_SERVICEDEPENDENCY_H
+#endif //CXX_CELIX_DM_SERVICEDEPENDENCY_H

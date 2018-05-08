@@ -20,15 +20,14 @@
 #ifndef CELIX_PHASE2AACTIVATOR_H
 #define CELIX_PHASE2AACTIVATOR_H
 
-#include "celix/dm/DmActivator.h"
+#include "celix/IBundleActivator.h"
 
 using namespace celix::dm;
 
-class Phase2Activator : public DmActivator {
+class Phase2Activator : public celix::IBundleActivator {
 public:
-    Phase2Activator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init();
-    virtual void deinit();
+    Phase2Activator(celix::BundleContext& ctx);
+    virtual ~Phase2Activator();
 };
 
 #endif //CELIX_PHASE2AACTIVATOR_H

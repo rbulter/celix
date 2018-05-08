@@ -73,8 +73,8 @@ if (ENABLE_TESTING AND UTILS-TESTS)
     SET(CMAKE_INSTALL_RPATH "${PROJECT_BINARY_DIR}/utils")
 
 
-    include_directories(${CUNIT_INCLUDE_DIRS})
-    include_directories(${CPPUTEST_INCLUDE_DIR})
+    include_directories(SYSTEM ${CUNIT_INCLUDE_DIRS})
+    include_directories(SYSTEM ${CPPUTEST_INCLUDE_DIR})
     include_directories(include)
     include_directories(src)
 

@@ -20,14 +20,12 @@
 #ifndef CELIX_PHASE3LOCKINGACTIVATOR_H
 #define CELIX_PHASE3LOCKINGACTIVATOR_H
 
-#include "celix/dm/DmActivator.h"
+#include "celix/IBundleActivator.h"
 
-using namespace celix::dm;
-
-class Phase3LockingActivator : public DmActivator {
+class Phase3LockingActivator : public celix::IBundleActivator {
 public:
-    Phase3LockingActivator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init();
+    Phase3LockingActivator(celix::BundleContext& ctx);
+    virtual ~Phase3LockingActivator();
 };
 
 #endif //CELIX_PHASE3LOCKINGAACTIVATOR_H
