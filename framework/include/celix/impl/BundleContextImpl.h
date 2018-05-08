@@ -71,15 +71,15 @@ namespace celix {
                 celix_bundleContext_unregisterService(this->c_ctx, serviceId);
             }
 
-            std::vector<long> findServices(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::string &/*lang = ""*/) noexcept override  {
+            std::vector<long> findServices(const std::string &/*serviceName*/, const std::string &/*versionRange*/, const std::string &/*filter*/, const std::string &/*lang = ""*/) noexcept override  {
                 std::vector<long> result{};
-                auto use = [&result](void *, const celix::Properties &props, const celix::Bundle &) {
-                    long id = celix::getProperty(props, OSGI_FRAMEWORK_SERVICE_ID, -1);
-                    if (id >= 0) {
-                        result.push_back(id);
-                    }
-                };
-                this->useServicesInternal(serviceName, versionRange, filter, use);
+//                auto use = [&result](void *, const celix::Properties &props, const celix::Bundle &) {
+//                    long id = celix::getProperty(props, OSGI_FRAMEWORK_SERVICE_ID, -1);
+//                    if (id >= 0) {
+//                        result.push_back(id);
+//                    }
+//                };
+                //TODO useServicesWithOptions this->useServicesInternal(serviceName, versionRange, filter, use);
                 return result;
             }
 
@@ -175,10 +175,8 @@ namespace celix {
             }
 
             long trackServiceInternal(const std::string &serviceName,
-                                      const std::string &versionRange,
-                                      const std::string &filter,
                                       std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept override  {
-                celix_service_tracker_options_t opts;
+                celix_service_tracking_options_t opts;
                 std::memset(&opts, 0, sizeof(opts));
 
                 auto c_set = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
@@ -189,12 +187,8 @@ namespace celix {
                     (entry->set)(svc, props, bnd);
                 };
                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
 
                 opts.serviceName = cname;
-                opts.versionRange = crange;
-                opts.filter = cfilter;
                 opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
 
                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
@@ -213,12 +207,10 @@ namespace celix {
 
             long trackServicesInternal(
                     const std::string &serviceName,
-                    const std::string &versionRange,
-                    const std::string &filter,
                     std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
                     std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
             ) noexcept override {
-                celix_service_tracker_options_t opts;
+                celix_service_tracking_options_t opts;
                 std::memset(&opts, 0, sizeof(opts));
 
                 auto c_add = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
@@ -236,13 +228,7 @@ namespace celix {
                     (entry->remove)(svc, props, bnd);
                 };
 
-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
-
-                opts.serviceName = cname;
-                opts.versionRange = crange;
-                opts.filter = cfilter;
+                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();
                 opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
 
                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
@@ -263,8 +249,6 @@ namespace celix {
 
             bool useServiceInternal(
                     const std::string &serviceName,
-                    const std::string &versionRange,
-                    const std::string &filter,
                     const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept override {
                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
@@ -273,16 +257,20 @@ namespace celix {
                     celix::impl::BundleImpl bnd{m_bnd};
                     (*fn)(svc, props, bnd);
                 };
-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
-                return celix_bundleContext_useService(this->c_ctx, cname, crange, cfilter, (void*)(&use), c_use);
+
+                celix_service_use_options_t opts;
+                std::memset(&opts, 0, sizeof(opts));
+
+                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
+                opts.lang = celix::Constants::SERVICE_CXX_LANG;
+                opts.callbackHandle = (void*)&use;
+                opts.use = c_use;
+
+                return celix_bundleContext_useServiceWithOptions(this->c_ctx, &opts);
             }
 
             void useServicesInternal(
                     const std::string &serviceName,
-                    const std::string &versionRange,
-                    const std::string &filter,
                     const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept override {
                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
@@ -291,10 +279,16 @@ namespace celix {
                     celix::impl::BundleImpl bnd{m_bnd};
                     (*fn)(svc, props, bnd);
                 };
-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
-                celix_bundleContext_useServices(this->c_ctx, cname, crange, cfilter, (void*)(&use), c_use);
+
+                celix_service_use_options_t opts;
+                std::memset(&opts, 0, sizeof(opts));
+
+                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
+                opts.lang = celix::Constants::SERVICE_CXX_LANG;
+                opts.callbackHandle = (void*)&use;
+                opts.use = c_use;
+
+                celix_bundleContext_useServicesWithOptions(this->c_ctx, &opts);
             }
 
         private:

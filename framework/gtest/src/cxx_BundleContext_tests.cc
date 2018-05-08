@@ -107,32 +107,35 @@ TEST_F(BundleContextTest, UseService) {
 TEST_F(BundleContextTest, UseServices) {
     auto &ctx = this->framework().getFrameworkContext();
 
-    struct test_svc {
-        int (*calc)(int input);
+    class ITestSvc {
+    public:
+        virtual ~ITestSvc(){};
+        virtual int calc(int input) = 0;
     };
-
-    test_svc svc{};
-    svc.calc = [](int input) -> int {
-        return input * 42;
+    class TestImpl : public ITestSvc {
+    public:
+        virtual ~TestImpl(){};
+        int calc(int input) override { return input * 42; }
     };
+    TestImpl svc{};
 
-    long svcId1 = ctx.registerCService("test service", &svc);
+    long svcId1 = ctx.registerService<ITestSvc>("test service", &svc);
     EXPECT_TRUE(svcId1 > 0);
 
-    long svcId2 = ctx.registerCService("test service", &svc);
+    long svcId2 = ctx.registerService<ITestSvc>("test service", &svc);
     EXPECT_TRUE(svcId2 > 0);
 
 
     int result = 0;
-    std::function<void(test_svc &svc, const celix::Properties&, const celix::Bundle&)> func = [&result](test_svc &svc, const celix::Properties&, const celix::Bundle&) {
+    auto func = [&result](ITestSvc &svc, const celix::Properties&, const celix::Bundle&) {
         result += svc.calc(1);
     };
-    ctx.useServices("test service", "", "", func);
+    ctx.useServices<ITestSvc>("test service", func);
     EXPECT_EQ(result, 84); //two times
 
     ctx.unregisterService(svcId1);
 
-    ctx.useServices("test service", "", "", func);
+    ctx.useServices<ITestSvc>("test service", func);
     EXPECT_EQ(result, 126); //one time
 
     ctx.unregisterService(svcId2);
@@ -144,17 +147,19 @@ TEST_F(BundleContextTest, TrackService) {
 
     int count = 0;
 
-    struct test_svc {
-        int (*calc)(int input);
+    class ITestSvc {
+    public:
+        virtual ~ITestSvc(){};
+        virtual int calc(int input) = 0;
     };
 
-    struct test_svc *svc1 = (struct test_svc*)0x100; //no ranking
-    struct test_svc *svc2 = (struct test_svc*)0x200; //no ranking
-    struct test_svc *svc3 = (struct test_svc*)0x300; //10 ranking
-    struct test_svc *svc4 = (struct test_svc*)0x400; //5 ranking
+    ITestSvc *svc1 = (ITestSvc*)0x100; //no ranking
+    ITestSvc *svc2 = (ITestSvc*)0x200; //no ranking
+    ITestSvc *svc3 = (ITestSvc*)0x300; //10 ranking
+    ITestSvc *svc4 = (ITestSvc*)0x400; //5 ranking
 
 
-    auto set = [&](struct test_svc *svc, const celix::Properties &, const celix::Bundle &) {
+    auto set = [&](ITestSvc *svc, const celix::Properties &, const celix::Bundle &) {
         static int callCount = 0;
         callCount += 1;
         if (callCount == 1) {
@@ -175,7 +180,7 @@ TEST_F(BundleContextTest, TrackService) {
     long svcId2 = ctx.registerService("NA", svc2);
 
     //starting tracker should lead to first set call
-    long trackerId = ctx.trackService<struct test_svc>("NA", "", "", set);
+    long trackerId = ctx.trackService<ITestSvc>("NA", set);
     EXPECT_TRUE(trackerId > 0);
 
     //register svc3 should lead to second set call

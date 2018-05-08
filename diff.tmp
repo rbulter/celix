@@ -1,0 +1,1166 @@
+diff --git a/examples/celix-examples/CMakeLists.txt b/examples/celix-examples/CMakeLists.txt
+index fd2ec1cb..bd700658 100644
+--- a/examples/celix-examples/CMakeLists.txt
++++ b/examples/celix-examples/CMakeLists.txt
+@@ -23,11 +23,13 @@ endif ()
+ if (EXAMPLES)
+     add_subdirectory(bundle_example_cxx)
+ 
++    add_subdirectory(services_example_cxx)
++
+     add_subdirectory(hello_world)
+     add_subdirectory(hello_world_test)
+ 
+     add_subdirectory(services_example_c)
+-    add_subdirectory(services_example_cxx)
++    add_subdirectory(best_practice_example_cxx)
+ 
+     add_subdirectory(dm_example)
+     add_subdirectory(dm_example_cxx)
+diff --git a/examples/celix-examples/best_practice_example_cxx/CMakeLists.txt b/examples/celix-examples/best_practice_example_cxx/CMakeLists.txt
+new file mode 100644
+index 00000000..faa7c002
+--- /dev/null
++++ b/examples/celix-examples/best_practice_example_cxx/CMakeLists.txt
+@@ -0,0 +1,62 @@
++# Licensed to the Apache Software Foundation (ASF) under one
++# or more contributor license agreements.  See the NOTICE file
++# distributed with this work for additional information
++# regarding copyright ownership.  The ASF licenses this file
++# to you under the Apache License, Version 2.0 (the
++# "License"); you may not use this file except in compliance
++# with the License.  You may obtain a copy of the License at
++#
++#   http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing,
++# software distributed under the License is distributed on an
++# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++# KIND, either express or implied.  See the License for the
++# specific language governing permissions and limitations
++# under the License.
++
++add_library(cxx_services_example_api INTERFACE)
++target_include_directories(cxx_services_example_api INTERFACE api)
++
++add_celix_bundle(cxx_foo
++        VERSION 1.0.0
++        SOURCES
++        foo/Foo.cc
++        foo/Foo.h
++        foo/FooActivator.cc
++        foo/FooActivator.h
++    )
++target_link_libraries(cxx_foo PRIVATE cxx_services_example_api)
++
++add_celix_bundle(cxx_bar
++        VERSION 1.0.0
++        SOURCES
++            bar/Bar.cc
++            bar/Bar.h
++            bar/BarActivator.cc
++            bar/BarActivator.h
++)
++target_link_libraries(cxx_bar PRIVATE cxx_services_example_api)
++
++add_celix_bundle(cxx_baz
++    VERSION 1.0.0
++    SOURCES
++        baz/Baz.cc
++        baz/Baz.h
++        baz/BazActivator.cc
++        baz/BazActivator.h
++)
++target_link_libraries(cxx_baz PRIVATE cxx_services_example_api)
++
++add_celix_container(best_practice_example_cxx
++    GROUP services_example
++    COPY
++    BUNDLES
++        Celix::shell
++        Celix::shell_tui
++        cxx_bar
++        cxx_foo
++        cxx_baz
++    PROPERTIES
++        example=value
++)
+diff --git a/examples/celix-examples/services_example_cxx/api/IAnotherExample.h b/examples/celix-examples/best_practice_example_cxx/api/IAnotherExample.h
+similarity index 87%
+rename from examples/celix-examples/services_example_cxx/api/IAnotherExample.h
+rename to examples/celix-examples/best_practice_example_cxx/api/IAnotherExample.h
+index 0cd6c225..2ed4d6dd 100644
+--- a/examples/celix-examples/services_example_cxx/api/IAnotherExample.h
++++ b/examples/celix-examples/best_practice_example_cxx/api/IAnotherExample.h
+@@ -20,14 +20,14 @@
+ #ifndef IANOTHER_EXAMPLE_H
+ #define IANOTHER_EXAMPLE_H
+ 
+-#define IANOTHER_EXAMPLE_VERSION "1.0.0"
+-#define IANOTHER_EXAMPLE_CONSUMER_RANGE "[1.0.0,2.0.0)"
+ 
+ class IAnotherExample {
+-protected:
+-    IAnotherExample() = default;
+-    virtual ~IAnotherExample() = default;
+ public:
++    static constexpr const char * const VERSION = "1.0.0";
++    static constexpr const char * const CONSUMER_RANGE = "[1.0.0,2.0.0)";
++
++    virtual ~IAnotherExample() = default;
++
+     virtual double method(int arg1, double arg2) = 0;
+ };
+ 
+diff --git a/examples/celix-examples/services_example_cxx/api/example.h b/examples/celix-examples/best_practice_example_cxx/api/example.h
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/api/example.h
+rename to examples/celix-examples/best_practice_example_cxx/api/example.h
+diff --git a/examples/celix-examples/services_example_cxx/bar/private/src/Bar.cc b/examples/celix-examples/best_practice_example_cxx/bar/Bar.cc
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/bar/private/src/Bar.cc
+rename to examples/celix-examples/best_practice_example_cxx/bar/Bar.cc
+diff --git a/examples/celix-examples/services_example_cxx/bar/private/include/Bar.h b/examples/celix-examples/best_practice_example_cxx/bar/Bar.h
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/bar/private/include/Bar.h
+rename to examples/celix-examples/best_practice_example_cxx/bar/Bar.h
+diff --git a/examples/celix-examples/services_example_cxx/bar/private/src/BarActivator.cc b/examples/celix-examples/best_practice_example_cxx/bar/BarActivator.cc
+similarity index 83%
+rename from examples/celix-examples/services_example_cxx/bar/private/src/BarActivator.cc
+rename to examples/celix-examples/best_practice_example_cxx/bar/BarActivator.cc
+index e4b8becd..1dc5a7e4 100644
+--- a/examples/celix-examples/services_example_cxx/bar/private/src/BarActivator.cc
++++ b/examples/celix-examples/best_practice_example_cxx/bar/BarActivator.cc
+@@ -20,13 +20,14 @@
+ #include "Bar.h"
+ #include "BarActivator.h"
+ 
+-using namespace celix::dm;
++#include "celix/BundleActivator.h"
+ 
+-DmActivator* DmActivator::create(DependencyManager& mng) {
+-    return new BarActivator(mng);
++celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
++    return new BarActivator{ctx};
+ }
+ 
+-void BarActivator::init() {
++BarActivator::BarActivator(celix::BundleContext& ctx) {
++    auto &mng = ctx.getDependencyManager();
+     auto bar = std::unique_ptr<Bar>{new Bar{}};
+ 
+     Properties props;
+@@ -42,7 +43,7 @@ void BarActivator::init() {
+     };
+ 
+     mng.createComponent(std::move(bar))  //using a pointer a instance. Also supported is lazy initialization (default constructor needed) or a rvalue reference (move)
+-        .addInterface<IAnotherExample>(IANOTHER_EXAMPLE_VERSION, props)
++        .addInterface<IAnotherExample>(IAnotherExample::VERSION, props)
+         .addCInterface(&this->cExample, EXAMPLE_NAME, EXAMPLE_VERSION, cProps)
+         .setCallbacks(&Bar::init, &Bar::start, &Bar::stop, &Bar::deinit);
+ }
+\ No newline at end of file
+diff --git a/examples/celix-examples/services_example_cxx/bar/private/include/BarActivator.h b/examples/celix-examples/best_practice_example_cxx/bar/BarActivator.h
+similarity index 82%
+rename from examples/celix-examples/services_example_cxx/bar/private/include/BarActivator.h
+rename to examples/celix-examples/best_practice_example_cxx/bar/BarActivator.h
+index 0c635a83..8642c4f6 100644
+--- a/examples/celix-examples/services_example_cxx/bar/private/include/BarActivator.h
++++ b/examples/celix-examples/best_practice_example_cxx/bar/BarActivator.h
+@@ -20,17 +20,15 @@
+ #ifndef BAR_ACTIVATOR_H
+ #define BAR_ACTIVATOR_H
+ 
+-#include "celix/dm/DmActivator.h"
++#include "celix/IBundleActivator.h"
+ #include "example.h"
+ 
+-using namespace celix::dm;
+-
+-class BarActivator : public DmActivator {
++class BarActivator : public celix::IBundleActivator {
++public:
++    BarActivator(celix::BundleContext &ctx);
++    virtual ~BarActivator() = default;
+ private:
+     example_t cExample {nullptr, nullptr};
+-public:
+-    BarActivator(DependencyManager& mng) : DmActivator(mng) {}
+-    virtual void init() override;
+ };
+ 
+ #endif //BAR_ACTIVATOR_H
+diff --git a/examples/celix-examples/services_example_cxx/baz/private/src/Baz.cc b/examples/celix-examples/best_practice_example_cxx/baz/Baz.cc
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/baz/private/src/Baz.cc
+rename to examples/celix-examples/best_practice_example_cxx/baz/Baz.cc
+diff --git a/examples/celix-examples/services_example_cxx/baz/private/include/Baz.h b/examples/celix-examples/best_practice_example_cxx/baz/Baz.h
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/baz/private/include/Baz.h
+rename to examples/celix-examples/best_practice_example_cxx/baz/Baz.h
+diff --git a/examples/celix-examples/services_example_cxx/baz/private/src/BazActivator.cc b/examples/celix-examples/best_practice_example_cxx/baz/BazActivator.cc
+similarity index 82%
+rename from examples/celix-examples/services_example_cxx/baz/private/src/BazActivator.cc
+rename to examples/celix-examples/best_practice_example_cxx/baz/BazActivator.cc
+index 3f17b5ad..a3d3a4fa 100644
+--- a/examples/celix-examples/services_example_cxx/baz/private/src/BazActivator.cc
++++ b/examples/celix-examples/best_practice_example_cxx/baz/BazActivator.cc
+@@ -20,21 +20,21 @@
+ #include "Baz.h"
+ #include "BazActivator.h"
+ 
+-using namespace celix::dm;
++#include "celix/BundleActivator.h"
+ 
+-DmActivator* DmActivator::create(DependencyManager& mng) {
+-    return new BazActivator(mng);
++celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
++    return new BazActivator{ctx};
+ }
+ 
+-void BazActivator::init() {
+-
++BazActivator::BazActivator(celix::BundleContext& ctx) {
++    auto &mng = ctx.getDependencyManager();
+     Component<Baz>& cmp = mng.createComponent<Baz>()
+         .setCallbacks(nullptr, &Baz::start, &Baz::stop, nullptr);
+ 
+     cmp.createServiceDependency<IAnotherExample>()
+             .setRequired(true)
+             .setStrategy(DependencyUpdateStrategy::locking)
+-            .setVersionRange(IANOTHER_EXAMPLE_CONSUMER_RANGE)
++            .setVersionRange(IAnotherExample::CONSUMER_RANGE)
+             .setCallbacks(&Baz::addAnotherExample, &Baz::removeAnotherExample);
+ 
+     cmp.createCServiceDependency<example_t>(EXAMPLE_NAME)
+diff --git a/examples/celix-examples/services_example_cxx/baz/private/include/BazActivator.h b/examples/celix-examples/best_practice_example_cxx/baz/BazActivator.h
+similarity index 81%
+rename from examples/celix-examples/services_example_cxx/baz/private/include/BazActivator.h
+rename to examples/celix-examples/best_practice_example_cxx/baz/BazActivator.h
+index fe249184..e1a7c38a 100644
+--- a/examples/celix-examples/services_example_cxx/baz/private/include/BazActivator.h
++++ b/examples/celix-examples/best_practice_example_cxx/baz/BazActivator.h
+@@ -20,15 +20,12 @@
+ #ifndef BAZ_ACTIVATOR_H
+ #define BAZ_ACTIVATOR_H
+ 
+-#include "celix/dm/DmActivator.h"
++#include "celix/IBundleActivator.h"
+ 
+-using namespace celix::dm;
+-
+-class BazActivator : public DmActivator {
+-private:
++class BazActivator : public celix::IBundleActivator {
+ public:
+-    BazActivator(DependencyManager& mng) : DmActivator(mng) {}
+-    virtual void init() override;
++    BazActivator(celix::BundleContext &ctx);
++    virtual ~BazActivator() = default;
+ };
+ 
+ #endif //BAZ_ACTIVATOR_H
+diff --git a/examples/celix-examples/services_example_cxx/foo/private/src/Foo.cc b/examples/celix-examples/best_practice_example_cxx/foo/Foo.cc
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/foo/private/src/Foo.cc
+rename to examples/celix-examples/best_practice_example_cxx/foo/Foo.cc
+diff --git a/examples/celix-examples/services_example_cxx/foo/private/include/Foo.h b/examples/celix-examples/best_practice_example_cxx/foo/Foo.h
+similarity index 100%
+rename from examples/celix-examples/services_example_cxx/foo/private/include/Foo.h
+rename to examples/celix-examples/best_practice_example_cxx/foo/Foo.h
+diff --git a/examples/celix-examples/services_example_cxx/foo/private/src/FooActivator.cc b/examples/celix-examples/best_practice_example_cxx/foo/FooActivator.cc
+similarity index 80%
+rename from examples/celix-examples/services_example_cxx/foo/private/src/FooActivator.cc
+rename to examples/celix-examples/best_practice_example_cxx/foo/FooActivator.cc
+index fba10cec..719da165 100644
+--- a/examples/celix-examples/services_example_cxx/foo/private/src/FooActivator.cc
++++ b/examples/celix-examples/best_practice_example_cxx/foo/FooActivator.cc
+@@ -20,20 +20,20 @@
+ #include "Foo.h"
+ #include "FooActivator.h"
+ 
+-using namespace celix::dm;
++#include "celix/BundleActivator.h"
+ 
+-DmActivator* DmActivator::create(DependencyManager& mng) {
+-    return new FooActivator(mng);
++celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
++    return new FooActivator{ctx};
+ }
+ 
+-void FooActivator::init() {
+-
++FooActivator::FooActivator(celix::BundleContext& ctx) {
++    auto &mng = ctx.getDependencyManager();
+     Component<Foo>& cmp = mng.createComponent<Foo>()
+         .setCallbacks(nullptr, &Foo::start, &Foo::stop, nullptr);
+ 
+     cmp.createServiceDependency<IAnotherExample>()
+             .setRequired(true)
+-            .setVersionRange(IANOTHER_EXAMPLE_CONSUMER_RANGE)
++            .setVersionRange(IAnotherExample::CONSUMER_RANGE)
+             .setCallbacks(&Foo::setAnotherExample);
+ 
+     cmp.createCServiceDependency<example_t>(EXAMPLE_NAME)
+diff --git a/examples/celix-examples/services_example_cxx/foo/private/include/FooActivator.h b/examples/celix-examples/best_practice_example_cxx/foo/FooActivator.h
+similarity index 81%
+rename from examples/celix-examples/services_example_cxx/foo/private/include/FooActivator.h
+rename to examples/celix-examples/best_practice_example_cxx/foo/FooActivator.h
+index 2917cbd6..a79d3659 100644
+--- a/examples/celix-examples/services_example_cxx/foo/private/include/FooActivator.h
++++ b/examples/celix-examples/best_practice_example_cxx/foo/FooActivator.h
+@@ -20,15 +20,13 @@
+ #ifndef FOO_ACTIVATOR_H
+ #define FOO_ACTIVATOR_H
+ 
+-#include "celix/dm/DmActivator.h"
++#include "celix/IBundleActivator.h"
+ 
+-using namespace celix::dm;
+-
+-class FooActivator : public DmActivator {
++class FooActivator : public celix::IBundleActivator {
+ private:
+ public:
+-    FooActivator(DependencyManager& mng) : DmActivator(mng) {}
+-    virtual void init() override;
++    FooActivator(celix::BundleContext &ctx);
++    virtual ~FooActivator() = default;
+ };
+ 
+ #endif //FOO_ACTIVATOR_H
+diff --git a/examples/celix-examples/bundle_example_cxx/src/BundleActivator.cc b/examples/celix-examples/bundle_example_cxx/src/BundleActivator.cc
+index 5687ff0e..367d1dcb 100644
+--- a/examples/celix-examples/bundle_example_cxx/src/BundleActivator.cc
++++ b/examples/celix-examples/bundle_example_cxx/src/BundleActivator.cc
+@@ -24,14 +24,15 @@
+ namespace {
+     class BundleActivator : public celix::IBundleActivator {
+     public:
+-        BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {
+-            std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
++        BundleActivator(celix::BundleContext &) {
++            //std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
++            std::cout << "Hello world from C++ bundle " << std::endl;
+         }
+         virtual ~BundleActivator() {
+-            std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
++            //std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
+         }
+     protected:
+-        celix::BundleContext &ctx;
++        //celix::BundleContext &ctx;
+     };
+ }
+ 
+diff --git a/examples/celix-examples/services_example_cxx/CMakeLists.txt b/examples/celix-examples/services_example_cxx/CMakeLists.txt
+index ba132519..fabd48f5 100644
+--- a/examples/celix-examples/services_example_cxx/CMakeLists.txt
++++ b/examples/celix-examples/services_example_cxx/CMakeLists.txt
+@@ -5,39 +5,35 @@
+ # to you under the Apache License, Version 2.0 (the
+ # "License"); you may not use this file except in compliance
+ # with the License.  You may obtain a copy of the License at
+-#
++# 
+ #   http://www.apache.org/licenses/LICENSE-2.0
+-#
++# 
+ # Unless required by applicable law or agreed to in writing,
+ # software distributed under the License is distributed on an
+ # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ # KIND, either express or implied.  See the License for the
+ # specific language governing permissions and limitations
+ # under the License.
+-if (BUILD_DEPENDENCY_MANAGER_CXX)
+-    include_directories(
+-            ${PROJECT_SOURCE_DIR}/dependency_manager/public/include
+-            ${PROJECT_SOURCE_DIR}/dependency_manager_cxx/include
+-            ${PROJECT_SOURCE_DIR}/utils/public/include
+-            api
+-    )
+ 
+-    add_subdirectory(bar)
+-    add_subdirectory(foo)
+-    add_subdirectory(baz)
++add_library(services_example_api_cxx INTERFACE)
++target_include_directories(services_example_api_cxx INTERFACE api)
+ 
+-    add_celix_container(services_example_cxx
+-        GROUP services_example
+-        COPY
+-        BUNDLES
+-            Celix::shell
+-            Celix::shell_tui
+-            dm_shell
+-            bar_cxx
+-            foo_cxx
+-            baz_cxx
+-        PROPERTIES
+-            example=value
+-    )
++add_celix_bundle(provider_example_cxx
++        VERSION 1.0.0
++        SOURCES src/ProviderBundleActivator.cc
++)
++target_link_libraries(provider_example_cxx PRIVATE services_example_api_cxx)
+ 
+-endif ()
++add_celix_bundle(consumer_example_cxx
++        VERSION 1.0.0
++        SOURCES src/ConsumerBundleActivator.cc
++)
++target_link_libraries(consumer_example_cxx PRIVATE services_example_api_cxx)
++
++add_celix_container(services_example_cxx
++    BUNDLES
++        Celix::shell
++        Celix::shell_tui
++        provider_example_cxx
++        consumer_example_cxx
++)
+\ No newline at end of file
+diff --git a/examples/celix-examples/services_example_cxx/api/ICalc.h b/examples/celix-examples/services_example_cxx/api/ICalc.h
+new file mode 100644
+index 00000000..4507d1ab
+--- /dev/null
++++ b/examples/celix-examples/services_example_cxx/api/ICalc.h
+@@ -0,0 +1,37 @@
++/**
++ *Licensed to the Apache Software Foundation (ASF) under one
++ *or more contributor license agreements.  See the NOTICE file
++ *distributed with this work for additional information
++ *regarding copyright ownership.  The ASF licenses this file
++ *to you under the Apache License, Version 2.0 (the
++ *"License"); you may not use this file except in compliance
++ *with the License.  You may obtain a copy of the License at
++ *
++ *  http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *Unless required by applicable law or agreed to in writing,
++ *software distributed under the License is distributed on an
++ *"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ *specific language governing permissions and limitations
++ *under the License.
++ */
++
++#ifndef CELIX_ICALC_H
++#define CELIX_ICALC_H
++
++namespace example {
++class ICalc {
++    public:
++        static constexpr const char * const NAME = "example::ICalc";
++        static constexpr const char * const VERSION = "1.0.0";
++        static constexpr const char * const CONSUMER_RANGE = "[1.0.0,2.0.0)";
++
++
++        virtual ~ICalc() = default;
++
++        virtual double calc(double input) = 0;
++    };
++}
++
++#endif //CELIX_ICALC_H
+diff --git a/examples/celix-examples/services_example_cxx/api/calc.h b/examples/celix-examples/services_example_cxx/api/calc.h
+new file mode 100644
+index 00000000..522dd767
+--- /dev/null
++++ b/examples/celix-examples/services_example_cxx/api/calc.h
+@@ -0,0 +1,43 @@
++/**
++ *Licensed to the Apache Software Foundation (ASF) under one
++ *or more contributor license agreements.  See the NOTICE file
++ *distributed with this work for additional information
++ *regarding copyright ownership.  The ASF licenses this file
++ *to you under the Apache License, Version 2.0 (the
++ *"License"); you may not use this file except in compliance
++ *with the License.  You may obtain a copy of the License at
++ *
++ *  http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *Unless required by applicable law or agreed to in writing,
++ *software distributed under the License is distributed on an
++ *"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ *specific language governing permissions and limitations
++ *under the License.
++ */
++
++#ifndef CALC_H_
++#define CALC_H_
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define CALC_NAME 			"org.example"
++#define CALC_VERSION 		"1.0.0"
++#define CALC_CONSUMER_RANGE   "[1.0.0,2.0.0)"
++
++
++struct calc_struct {
++	void *handle;
++	double (*calc)(double input);
++} ;
++
++typedef struct calc_struct calc_t;
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* CALC_H_ */
+diff --git a/examples/celix-examples/services_example_cxx/bar/CMakeLists.txt b/examples/celix-examples/services_example_cxx/bar/CMakeLists.txt
+deleted file mode 100644
+index c660ce6d..00000000
+--- a/examples/celix-examples/services_example_cxx/bar/CMakeLists.txt
++++ /dev/null
+@@ -1,41 +0,0 @@
+-# Licensed to the Apache Software Foundation (ASF) under one
+-# or more contributor license agreements.  See the NOTICE file
+-# distributed with this work for additional information
+-# regarding copyright ownership.  The ASF licenses this file
+-# to you under the Apache License, Version 2.0 (the
+-# "License"); you may not use this file except in compliance
+-# with the License.  You may obtain a copy of the License at
+-# 
+-#   http://www.apache.org/licenses/LICENSE-2.0
+-# 
+-# Unless required by applicable law or agreed to in writing,
+-# software distributed under the License is distributed on an
+-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-# KIND, either express or implied.  See the License for the
+-# specific language governing permissions and limitations
+-# under the License.
+-
+-include_directories(
+-        private/include
+-)
+-
+-add_celix_bundle(bar_cxx
+-    SYMBOLIC_NAME Bar
+-    VERSION 1.0.0
+-    SOURCES
+-        private/src/Bar.cc
+-        private/src/BarActivator.cc
+-)
+-
+-target_compile_options(bar_cxx PUBLIC -Wall -Wextra -Weffc++ -Werror)
+-
+-IF(APPLE)
+-    target_link_libraries(bar_cxx PRIVATE -Wl,-all_load  dependency_manager_cxx_static)
+-else()
+-    if(ENABLE_ADDRESS_SANITIZER)
+-        #With asan there can be undefined symbols
+-        target_link_libraries(bar_cxx PRIVATE -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    else()
+-        target_link_libraries(bar_cxx PRIVATE -Wl,--no-undefined -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    endif()
+-endif()
+\ No newline at end of file
+diff --git a/examples/celix-examples/services_example_cxx/baz/CMakeLists.txt b/examples/celix-examples/services_example_cxx/baz/CMakeLists.txt
+deleted file mode 100644
+index ce5bfd0a..00000000
+--- a/examples/celix-examples/services_example_cxx/baz/CMakeLists.txt
++++ /dev/null
+@@ -1,41 +0,0 @@
+-# Licensed to the Apache Software Foundation (ASF) under one
+-# or more contributor license agreements.  See the NOTICE file
+-# distributed with this work for additional information
+-# regarding copyright ownership.  The ASF licenses this file
+-# to you under the Apache License, Version 2.0 (the
+-# "License"); you may not use this file except in compliance
+-# with the License.  You may obtain a copy of the License at
+-# 
+-#   http://www.apache.org/licenses/LICENSE-2.0
+-# 
+-# Unless required by applicable law or agreed to in writing,
+-# software distributed under the License is distributed on an
+-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-# KIND, either express or implied.  See the License for the
+-# specific language governing permissions and limitations
+-# under the License.
+-
+-include_directories(
+-        private/include
+-)
+-
+-add_celix_bundle(baz_cxx
+-    SYMBOLIC_NAME Baz
+-    VERSION 1.0.0
+-    SOURCES
+-        private/src/Baz.cc
+-        private/src/BazActivator.cc
+-)
+-
+-target_compile_options(baz_cxx PUBLIC -Wall -Wextra -Weffc++ -Werror)
+-
+-IF(APPLE)
+-    target_link_libraries(baz_cxx PRIVATE  -Wl,-all_load  dependency_manager_cxx_static)
+-else()
+-    if(ENABLE_ADDRESS_SANITIZER)
+-        #With asan there can be undefined symbols
+-        target_link_libraries(baz_cxx PRIVATE -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    else()
+-        target_link_libraries(baz_cxx PRIVATE -Wl,--no-undefined -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    endif()
+-endif()
+diff --git a/examples/celix-examples/services_example_cxx/foo/CMakeLists.txt b/examples/celix-examples/services_example_cxx/foo/CMakeLists.txt
+deleted file mode 100644
+index ba2aa556..00000000
+--- a/examples/celix-examples/services_example_cxx/foo/CMakeLists.txt
++++ /dev/null
+@@ -1,41 +0,0 @@
+-# Licensed to the Apache Software Foundation (ASF) under one
+-# or more contributor license agreements.  See the NOTICE file
+-# distributed with this work for additional information
+-# regarding copyright ownership.  The ASF licenses this file
+-# to you under the Apache License, Version 2.0 (the
+-# "License"); you may not use this file except in compliance
+-# with the License.  You may obtain a copy of the License at
+-# 
+-#   http://www.apache.org/licenses/LICENSE-2.0
+-# 
+-# Unless required by applicable law or agreed to in writing,
+-# software distributed under the License is distributed on an
+-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-# KIND, either express or implied.  See the License for the
+-# specific language governing permissions and limitations
+-# under the License.
+-
+-include_directories(
+-        private/include
+-)
+-
+-add_celix_bundle(foo_cxx
+-    SYMBOLIC_NAME Foo
+-    VERSION 1.0.0
+-    SOURCES
+-        private/src/Foo.cc
+-        private/src/FooActivator.cc
+-)
+-
+-target_compile_options(foo_cxx PUBLIC -Wall -Wextra -Weffc++ -Werror)
+-
+-IF(APPLE)
+-    target_link_libraries(foo_cxx PRIVATE -Wl,-all_load  dependency_manager_cxx_static)
+-else()
+-    if(ENABLE_ADDRESS_SANITIZER)
+-        #With asan there can be undefined symbols
+-        target_link_libraries(foo_cxx PRIVATE -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    else()
+-        target_link_libraries(foo_cxx PRIVATE -Wl,--no-undefined -Wl,--whole-archive  dependency_manager_cxx_static -Wl,--no-whole-archive)
+-    endif()
+-endif()
+diff --git a/examples/celix-examples/services_example_cxx/src/ConsumerBundleActivator.cc b/examples/celix-examples/services_example_cxx/src/ConsumerBundleActivator.cc
+new file mode 100644
+index 00000000..5ad00fed
+--- /dev/null
++++ b/examples/celix-examples/services_example_cxx/src/ConsumerBundleActivator.cc
+@@ -0,0 +1,72 @@
++/**
++ *Licensed to the Apache Software Foundation (ASF) under one
++ *or more contributor license agreements.  See the NOTICE file
++ *distributed with this work for additional information
++ *regarding copyright ownership.  The ASF licenses this file
++ *to you under the Apache License, Version 2.0 (the
++ *"License"); you may not use this file except in compliance
++ *with the License.  You may obtain a copy of the License at
++ *
++ *  http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *Unless required by applicable law or agreed to in writing,
++ *software distributed under the License is distributed on an
++ *"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ *specific language governing permissions and limitations
++ *under the License.
++ */
++
++#include <iostream>
++#include <thread>
++
++#include "celix/BundleActivator.h"
++
++#include "ICalc.h"
++
++namespace {
++    class BundleActivator : public celix::IBundleActivator {
++    public:
++        BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {}
++
++        virtual ~BundleActivator() {
++                this->useThread.join();
++        }
++
++    protected:
++        void use() {
++                while(this->running) {
++                        int count = 0;
++                        double total = 0;
++                        ctx.useServices<example::ICalc>(example::ICalc::NAME, [&](example::ICalc &calc, const celix::Properties &, const celix::Bundle&) {
++                                count++;
++                                total += calc.calc(1);
++                        });
++                        std::cout << "Called calc " << count << " times. Total is " << total << std::endl;
++                        std::this_thread::sleep_for(std::chrono::seconds(5));
++                }
++        }
++
++        void setRunning(bool r) {
++                std::lock_guard<std::mutex> lock{this->mutex};
++                this->running = r;
++        }
++
++        bool isRunning() {
++                std::lock_guard<std::mutex> lock{this->mutex};
++                return this->running;
++        }
++
++    private:
++        celix::BundleContext &ctx;
++        std::thread useThread{[this] { this->use(); }};
++
++        std::mutex mutex{}; //protects running
++        bool running{true};
++    };
++}
++
++celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
++    return new BundleActivator{ctx};
++}
++
+diff --git a/examples/celix-examples/services_example_cxx/src/ProviderBundleActivator.cc b/examples/celix-examples/services_example_cxx/src/ProviderBundleActivator.cc
+new file mode 100644
+index 00000000..fd8466e4
+--- /dev/null
++++ b/examples/celix-examples/services_example_cxx/src/ProviderBundleActivator.cc
+@@ -0,0 +1,98 @@
++/**
++ *Licensed to the Apache Software Foundation (ASF) under one
++ *or more contributor license agreements.  See the NOTICE file
++ *distributed with this work for additional information
++ *regarding copyright ownership.  The ASF licenses this file
++ *to you under the Apache License, Version 2.0 (the
++ *"License"); you may not use this file except in compliance
++ *with the License.  You may obtain a copy of the License at
++ *
++ *  http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *Unless required by applicable law or agreed to in writing,
++ *software distributed under the License is distributed on an
++ *"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ *specific language governing permissions and limitations
++ *under the License.
++ */
++
++#include <iostream>
++#include <thread>
++#include <mutex>
++#include <vector>
++
++#include "celix/BundleActivator.h"
++
++#include "ICalc.h"
++
++namespace {
++    class CalcImpl : public example::ICalc {
++        double calc(double input) override {
++            return input * 42.0;
++        }
++    };
++
++    class BundleActivator : public celix::IBundleActivator {
++    public:
++        BundleActivator(celix::BundleContext &ctx) {
++            /*
++             * This thread registers calc service to a max of 100, then unregistered the services and repeats.
++             */
++            th = std::thread{[this, &ctx]{
++                std::cout << "Starting service register thread" << std::endl;
++                CalcImpl calc{};
++                std::vector<long> svcIds{};
++                bool up = true;
++                while (this->isRunning()) {
++                    if (up) {
++                        celix::Properties props{};
++                        props[celix::Constants::SERVICE_RANKING] = "10"; //TODO random
++                        long svcId = ctx.registerService(example::ICalc::NAME, &calc, example::ICalc::VERSION, std::move(props));
++                        svcIds.push_back(svcId);
++                    } else {
++                        if (svcIds.size() > 0) {
++                            long svcId = svcIds.back();
++                            svcIds.pop_back();
++                            ctx.unregisterService(svcId);
++                        } else {
++                            up = true;
++                        }
++                    }
++                    if (svcIds.size() >= 100) {
++                        up = false;
++                    }
++                    std::this_thread::yield();
++                }
++                std::cout << "Exiting service register thread, services count is " << svcIds.size() << std::endl;
++                std::for_each(svcIds.begin(), svcIds.end(), [&ctx](long id){ctx.unregisterService(id);});
++
++            }};
++        }
++
++        virtual ~BundleActivator() {
++            this->setRunning(false);
++            th.join();
++        }
++
++        void setRunning(bool r) {
++            std::lock_guard<std::mutex> lock{this->mutex};
++            this->running = r;
++        }
++
++        bool isRunning() {
++            std::lock_guard<std::mutex> lock{this->mutex};
++            return this->running;
++        }
++    private:
++        std::thread th{};
++
++        std::mutex mutex{}; //protects running
++        bool running{true};
++    };
++}
++
++celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
++    return new BundleActivator{ctx};
++}
++
+diff --git a/framework/gtest/src/cxx_BundleContext_tests.cc b/framework/gtest/src/cxx_BundleContext_tests.cc
+index d1a6a06a..76870110 100644
+--- a/framework/gtest/src/cxx_BundleContext_tests.cc
++++ b/framework/gtest/src/cxx_BundleContext_tests.cc
+@@ -107,32 +107,35 @@ TEST_F(BundleContextTest, UseService) {
+ TEST_F(BundleContextTest, UseServices) {
+     auto &ctx = this->framework().getFrameworkContext();
+ 
+-    struct test_svc {
+-        int (*calc)(int input);
++    class ITestSvc {
++    public:
++        virtual ~ITestSvc(){};
++        virtual int calc(int input) = 0;
+     };
+-
+-    test_svc svc{};
+-    svc.calc = [](int input) -> int {
+-        return input * 42;
++    class TestImpl : public ITestSvc {
++    public:
++        virtual ~TestImpl(){};
++        int calc(int input) override { return input * 42; }
+     };
++    TestImpl svc{};
+ 
+-    long svcId1 = ctx.registerCService("test service", &svc);
++    long svcId1 = ctx.registerService<ITestSvc>("test service", &svc);
+     EXPECT_TRUE(svcId1 > 0);
+ 
+-    long svcId2 = ctx.registerCService("test service", &svc);
++    long svcId2 = ctx.registerService<ITestSvc>("test service", &svc);
+     EXPECT_TRUE(svcId2 > 0);
+ 
+ 
+     int result = 0;
+-    std::function<void(test_svc &svc, const celix::Properties&, const celix::Bundle&)> func = [&result](test_svc &svc, const celix::Properties&, const celix::Bundle&) {
++    auto func = [&result](ITestSvc &svc, const celix::Properties&, const celix::Bundle&) {
+         result += svc.calc(1);
+     };
+-    ctx.useServices("test service", "", "", func);
++    ctx.useServices<ITestSvc>("test service", func);
+     EXPECT_EQ(result, 84); //two times
+ 
+     ctx.unregisterService(svcId1);
+ 
+-    ctx.useServices("test service", "", "", func);
++    ctx.useServices<ITestSvc>("test service", func);
+     EXPECT_EQ(result, 126); //one time
+ 
+     ctx.unregisterService(svcId2);
+@@ -144,17 +147,19 @@ TEST_F(BundleContextTest, TrackService) {
+ 
+     int count = 0;
+ 
+-    struct test_svc {
+-        int (*calc)(int input);
++    class ITestSvc {
++    public:
++        virtual ~ITestSvc(){};
++        virtual int calc(int input) = 0;
+     };
+ 
+-    struct test_svc *svc1 = (struct test_svc*)0x100; //no ranking
+-    struct test_svc *svc2 = (struct test_svc*)0x200; //no ranking
+-    struct test_svc *svc3 = (struct test_svc*)0x300; //10 ranking
+-    struct test_svc *svc4 = (struct test_svc*)0x400; //5 ranking
++    ITestSvc *svc1 = (ITestSvc*)0x100; //no ranking
++    ITestSvc *svc2 = (ITestSvc*)0x200; //no ranking
++    ITestSvc *svc3 = (ITestSvc*)0x300; //10 ranking
++    ITestSvc *svc4 = (ITestSvc*)0x400; //5 ranking
+ 
+ 
+-    auto set = [&](struct test_svc *svc, const celix::Properties &, const celix::Bundle &) {
++    auto set = [&](ITestSvc *svc, const celix::Properties &, const celix::Bundle &) {
+         static int callCount = 0;
+         callCount += 1;
+         if (callCount == 1) {
+@@ -175,7 +180,7 @@ TEST_F(BundleContextTest, TrackService) {
+     long svcId2 = ctx.registerService("NA", svc2);
+ 
+     //starting tracker should lead to first set call
+-    long trackerId = ctx.trackService<struct test_svc>("NA", "", "", set);
++    long trackerId = ctx.trackService<ITestSvc>("NA", set);
+     EXPECT_TRUE(trackerId > 0);
+ 
+     //register svc3 should lead to second set call
+diff --git a/framework/include/celix/BundleContext.h b/framework/include/celix/BundleContext.h
+index b26cdd04..e6da72f1 100644
+--- a/framework/include/celix/BundleContext.h
++++ b/framework/include/celix/BundleContext.h
+@@ -98,11 +98,9 @@ namespace celix {
+         template<typename I>
+         long trackService(
+                 const std::string &serviceName,
+-                const std::string &versionRange,
+-                const std::string &filter,
+                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> set
+         ) noexcept {
+-            return this->trackServiceInternal(serviceName, versionRange, filter, [set](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
++            return this->trackServiceInternal(serviceName, [set](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
+                 I* typedSvc = static_cast<I*>(voidSvc);
+                 set(typedSvc, props, bnd);
+             });
+@@ -123,12 +121,10 @@ namespace celix {
+         template<typename I>
+         long trackServices(
+                 const std::string &serviceName,
+-                const std::string &versionRange,
+-                const std::string &filter,
+                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> add,
+                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> remove
+         ) noexcept {
+-            return this->trackServicesInternal(serviceName, versionRange, filter,
++            return this->trackServicesInternal(serviceName,
+                                                [add](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
+                                                    I *typedSvc = static_cast<I *>(voidSvc);
+                                                    add(typedSvc, props, bnd);
+@@ -141,7 +137,8 @@ namespace celix {
+         }
+ 
+         //TODO make add / remove service refs??
+-        //TODO missing lang for track services
++        //TODO add trackService(s)WithOptions
++        //TODO add trackCService(s) variants
+ 
+         /**
+          * Note use fucntion by const reference. Only used during the call.
+@@ -150,27 +147,31 @@ namespace celix {
+          * @return
+          */
+         template<typename I>
+-        bool useService(long serviceId, const std::string &serviceName /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
++        bool useService(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &/*use*/) noexcept {
+             std::string filter = std::string{"(service.id="} + std::to_string(serviceId) + std::string{")"};
+-            return this->useService<I>(serviceName, "", filter, use);
++            //TODO use useServiceWithOptions return this->useService<I>(serviceName, "", filter, use);
++            return false;
+         }
+ 
+         template<typename I>
+-        bool useService(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
+-            return this->useServiceInternal(serviceName, versionRange, filter, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
++        bool useService(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
++            return this->useServiceInternal(serviceName, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
+                 I *typedSvc = static_cast<I*>(voidSvc);
+                 use(*typedSvc, props, svcOwner);
+             });
+         }
+ 
+         template<typename I>
+-        void useServices(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
+-            this->useServicesInternal(serviceName, filter, versionRange, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
++        void useServices(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
++            this->useServicesInternal(serviceName, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
+                 I *typedSvc = static_cast<I*>(voidSvc);
+                 use(*typedSvc, props, svcOwner);
+             });
+         }
+ 
++        //TODO add useService(s)WithOptions
++        //TODO add useCService(s) variants
++
+         /**
+          * Note ordered by service rank.
+          */
+@@ -225,20 +226,16 @@ namespace celix {
+         virtual long registerServiceInternal(const std::string &serviceName, void *svc, const std::string &version, const std::string &lang, celix::Properties props) noexcept = 0;
+ 
+         virtual long trackServiceInternal(const std::string &serviceName,
+-                                         const std::string &versionRange,
+-                                         const std::string &filter,
+                                          std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept = 0;
+ 
+         virtual long trackServicesInternal(
+                 const std::string &serviceName,
+-                const std::string &versionRange,
+-                const std::string &filter,
+                 std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
+                 std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
+         ) noexcept = 0;
+ 
+-        virtual bool useServiceInternal(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
+-        virtual void useServicesInternal(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
++        virtual bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
++        virtual void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
+     };
+ 
+ }
+diff --git a/framework/include/celix/impl/BundleContextImpl.h b/framework/include/celix/impl/BundleContextImpl.h
+index 80ee6622..cc2bc0e3 100644
+--- a/framework/include/celix/impl/BundleContextImpl.h
++++ b/framework/include/celix/impl/BundleContextImpl.h
+@@ -71,15 +71,15 @@ namespace celix {
+                 celix_bundleContext_unregisterService(this->c_ctx, serviceId);
+             }
+ 
+-            std::vector<long> findServices(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::string &/*lang = ""*/) noexcept override  {
++            std::vector<long> findServices(const std::string &/*serviceName*/, const std::string &/*versionRange*/, const std::string &/*filter*/, const std::string &/*lang = ""*/) noexcept override  {
+                 std::vector<long> result{};
+-                auto use = [&result](void *, const celix::Properties &props, const celix::Bundle &) {
+-                    long id = celix::getProperty(props, OSGI_FRAMEWORK_SERVICE_ID, -1);
+-                    if (id >= 0) {
+-                        result.push_back(id);
+-                    }
+-                };
+-                this->useServicesInternal(serviceName, versionRange, filter, use);
++//                auto use = [&result](void *, const celix::Properties &props, const celix::Bundle &) {
++//                    long id = celix::getProperty(props, OSGI_FRAMEWORK_SERVICE_ID, -1);
++//                    if (id >= 0) {
++//                        result.push_back(id);
++//                    }
++//                };
++                //TODO useServicesWithOptions this->useServicesInternal(serviceName, versionRange, filter, use);
+                 return result;
+             }
+ 
+@@ -175,10 +175,8 @@ namespace celix {
+             }
+ 
+             long trackServiceInternal(const std::string &serviceName,
+-                                      const std::string &versionRange,
+-                                      const std::string &filter,
+                                       std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept override  {
+-                celix_service_tracker_options_t opts;
++                celix_service_tracking_options_t opts;
+                 std::memset(&opts, 0, sizeof(opts));
+ 
+                 auto c_set = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+@@ -189,12 +187,8 @@ namespace celix {
+                     (entry->set)(svc, props, bnd);
+                 };
+                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
+-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
+-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
+ 
+                 opts.serviceName = cname;
+-                opts.versionRange = crange;
+-                opts.filter = cfilter;
+                 opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
+ 
+                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
+@@ -213,12 +207,10 @@ namespace celix {
+ 
+             long trackServicesInternal(
+                     const std::string &serviceName,
+-                    const std::string &versionRange,
+-                    const std::string &filter,
+                     std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
+                     std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
+             ) noexcept override {
+-                celix_service_tracker_options_t opts;
++                celix_service_tracking_options_t opts;
+                 std::memset(&opts, 0, sizeof(opts));
+ 
+                 auto c_add = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+@@ -236,13 +228,7 @@ namespace celix {
+                     (entry->remove)(svc, props, bnd);
+                 };
+ 
+-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
+-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
+-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
+-
+-                opts.serviceName = cname;
+-                opts.versionRange = crange;
+-                opts.filter = cfilter;
++                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();
+                 opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
+ 
+                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
+@@ -263,8 +249,6 @@ namespace celix {
+ 
+             bool useServiceInternal(
+                     const std::string &serviceName,
+-                    const std::string &versionRange,
+-                    const std::string &filter,
+                     const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept override {
+                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
+                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
+@@ -273,16 +257,20 @@ namespace celix {
+                     celix::impl::BundleImpl bnd{m_bnd};
+                     (*fn)(svc, props, bnd);
+                 };
+-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
+-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
+-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
+-                return celix_bundleContext_useService(this->c_ctx, cname, crange, cfilter, (void*)(&use), c_use);
++
++                celix_service_use_options_t opts;
++                std::memset(&opts, 0, sizeof(opts));
++
++                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
++                opts.lang = celix::Constants::SERVICE_CXX_LANG;
++                opts.callbackHandle = (void*)&use;
++                opts.use = c_use;
++
++                return celix_bundleContext_useServiceWithOptions(this->c_ctx, &opts);
+             }
+ 
+             void useServicesInternal(
+                     const std::string &serviceName,
+-                    const std::string &versionRange,
+-                    const std::string &filter,
+                     const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept override {
+                 auto c_use = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_svcOwner) {
+                     auto *fn = static_cast<const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> *>(handle);
+@@ -291,10 +279,16 @@ namespace celix {
+                     celix::impl::BundleImpl bnd{m_bnd};
+                     (*fn)(svc, props, bnd);
+                 };
+-                const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
+-                const char *crange = versionRange.empty() ? nullptr : versionRange.c_str();
+-                const char *cfilter = filter.empty() ? nullptr : filter.c_str();
+-                celix_bundleContext_useServices(this->c_ctx, cname, crange, cfilter, (void*)(&use), c_use);
++
++                celix_service_use_options_t opts;
++                std::memset(&opts, 0, sizeof(opts));
++
++                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
++                opts.lang = celix::Constants::SERVICE_CXX_LANG;
++                opts.callbackHandle = (void*)&use;
++                opts.use = c_use;
++
++                celix_bundleContext_useServicesWithOptions(this->c_ctx, &opts);
+             }
+ 
+         private:

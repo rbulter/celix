@@ -98,11 +98,9 @@ namespace celix {
         template<typename I>
         long trackService(
                 const std::string &serviceName,
-                const std::string &versionRange,
-                const std::string &filter,
                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> set
         ) noexcept {
-            return this->trackServiceInternal(serviceName, versionRange, filter, [set](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
+            return this->trackServiceInternal(serviceName, [set](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
                 I* typedSvc = static_cast<I*>(voidSvc);
                 set(typedSvc, props, bnd);
             });
@@ -123,12 +121,10 @@ namespace celix {
         template<typename I>
         long trackServices(
                 const std::string &serviceName,
-                const std::string &versionRange,
-                const std::string &filter,
                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> add,
                 std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> remove
         ) noexcept {
-            return this->trackServicesInternal(serviceName, versionRange, filter,
+            return this->trackServicesInternal(serviceName,
                                                [add](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
                                                    I *typedSvc = static_cast<I *>(voidSvc);
                                                    add(typedSvc, props, bnd);
@@ -141,7 +137,8 @@ namespace celix {
         }
 
         //TODO make add / remove service refs??
-        //TODO missing lang for track services
+        //TODO add trackService(s)WithOptions
+        //TODO add trackCService(s) variants
 
         /**
          * Note use fucntion by const reference. Only used during the call.
@@ -150,26 +147,30 @@ namespace celix {
          * @return
          */
         template<typename I>
-        bool useService(long serviceId, const std::string &serviceName /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
+        bool useService(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &/*use*/) noexcept {
             std::string filter = std::string{"(service.id="} + std::to_string(serviceId) + std::string{")"};
-            return this->useService<I>(serviceName, "", filter, use);
+            //TODO use useServiceWithOptions return this->useService<I>(serviceName, "", filter, use);
+            return false;
         }
 
         template<typename I>
-        bool useService(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
-            return this->useServiceInternal(serviceName, versionRange, filter, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
+        bool useService(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
+            return this->useServiceInternal(serviceName, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
                 I *typedSvc = static_cast<I*>(voidSvc);
                 use(*typedSvc, props, svcOwner);
             });
         }
 
         template<typename I>
-        void useServices(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
-            this->useServicesInternal(serviceName, filter, versionRange, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
+        void useServices(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept {
+            this->useServicesInternal(serviceName, [use](void *voidSvc, const celix::Properties &props, const celix::Bundle &svcOwner) {
                 I *typedSvc = static_cast<I*>(voidSvc);
                 use(*typedSvc, props, svcOwner);
             });
         }
+
+        //TODO add useService(s)WithOptions
+        //TODO add useCService(s) variants
 
         /**
          * Note ordered by service rank.
@@ -225,20 +226,16 @@ namespace celix {
         virtual long registerServiceInternal(const std::string &serviceName, void *svc, const std::string &version, const std::string &lang, celix::Properties props) noexcept = 0;
 
         virtual long trackServiceInternal(const std::string &serviceName,
-                                         const std::string &versionRange,
-                                         const std::string &filter,
                                          std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept = 0;
 
         virtual long trackServicesInternal(
                 const std::string &serviceName,
-                const std::string &versionRange,
-                const std::string &filter,
                 std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
                 std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
         ) noexcept = 0;
 
-        virtual bool useServiceInternal(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
-        virtual void useServicesInternal(const std::string &serviceName, const std::string &versionRange, const std::string &filter, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
+        virtual bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
+        virtual void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
     };
 
 }

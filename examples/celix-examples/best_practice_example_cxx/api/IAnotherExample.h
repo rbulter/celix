@@ -17,20 +17,18 @@
  * under the License.
  */
 
-#ifndef BAR_ACTIVATOR_H
-#define BAR_ACTIVATOR_H
+#ifndef IANOTHER_EXAMPLE_H
+#define IANOTHER_EXAMPLE_H
 
-#include "celix/dm/DmActivator.h"
-#include "example.h"
 
-using namespace celix::dm;
-
-class BarActivator : public DmActivator {
-private:
-    example_t cExample {nullptr, nullptr};
+class IAnotherExample {
 public:
-    BarActivator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init() override;
+    static constexpr const char * const VERSION = "1.0.0";
+    static constexpr const char * const CONSUMER_RANGE = "[1.0.0,2.0.0)";
+
+    virtual ~IAnotherExample() = default;
+
+    virtual double method(int arg1, double arg2) = 0;
 };
 
-#endif //BAR_ACTIVATOR_H
+#endif //IANOTHER_EXAMPLE_H

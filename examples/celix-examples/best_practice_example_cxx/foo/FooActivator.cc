@@ -17,18 +17,27 @@
  * under the License.
  */
 
-#ifndef IANOTHER_EXAMPLE_H
-#define IANOTHER_EXAMPLE_H
+#include "Foo.h"
+#include "FooActivator.h"
 
-#define IANOTHER_EXAMPLE_VERSION "1.0.0"
-#define IANOTHER_EXAMPLE_CONSUMER_RANGE "[1.0.0,2.0.0)"
+#include "celix/BundleActivator.h"
 
-class IAnotherExample {
-protected:
-    IAnotherExample() = default;
-    virtual ~IAnotherExample() = default;
-public:
-    virtual double method(int arg1, double arg2) = 0;
-};
+celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
+    return new FooActivator{ctx};
+}
 
-#endif //IANOTHER_EXAMPLE_H
+FooActivator::FooActivator(celix::BundleContext& ctx) {
+    auto &mng = ctx.getDependencyManager();
+    Component<Foo>& cmp = mng.createComponent<Foo>()
+        .setCallbacks(nullptr, &Foo::start, &Foo::stop, nullptr);
+
+    cmp.createServiceDependency<IAnotherExample>()
+            .setRequired(true)
+            .setVersionRange(IAnotherExample::CONSUMER_RANGE)
+            .setCallbacks(&Foo::setAnotherExample);
+
+    cmp.createCServiceDependency<example_t>(EXAMPLE_NAME)
+            .setRequired(false)
+            .setVersionRange(EXAMPLE_CONSUMER_RANGE)
+            .setCallbacks(&Foo::setExample);
+}

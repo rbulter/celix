@@ -17,26 +17,27 @@
  *under the License.
  */
 
-#include <iostream>
+#ifndef CALC_H_
+#define CALC_H_
 
-#include "celix/BundleActivator.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace {
-    class BundleActivator : public celix::IBundleActivator {
-    public:
-        BundleActivator(celix::BundleContext &) {
-            //std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
-            std::cout << "Hello world from C++ bundle " << std::endl;
-        }
-        virtual ~BundleActivator() {
-            //std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
-        }
-    protected:
-        //celix::BundleContext &ctx;
-    };
+#define CALC_NAME 			"org.example"
+#define CALC_VERSION 		"1.0.0"
+#define CALC_CONSUMER_RANGE   "[1.0.0,2.0.0)"
+
+
+struct calc_struct {
+	void *handle;
+	double (*calc)(double input);
+} ;
+
+typedef struct calc_struct calc_t;
+
+#ifdef __cplusplus
 }
+#endif
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BundleActivator{ctx};
-}
-
+#endif /* CALC_H_ */

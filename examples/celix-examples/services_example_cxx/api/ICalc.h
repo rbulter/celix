@@ -17,26 +17,21 @@
  *under the License.
  */
 
-#include <iostream>
+#ifndef CELIX_ICALC_H
+#define CELIX_ICALC_H
 
-#include "celix/BundleActivator.h"
-
-namespace {
-    class BundleActivator : public celix::IBundleActivator {
+namespace example {
+class ICalc {
     public:
-        BundleActivator(celix::BundleContext &) {
-            //std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
-            std::cout << "Hello world from C++ bundle " << std::endl;
-        }
-        virtual ~BundleActivator() {
-            //std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
-        }
-    protected:
-        //celix::BundleContext &ctx;
+        static constexpr const char * const NAME = "example::ICalc";
+        static constexpr const char * const VERSION = "1.0.0";
+        static constexpr const char * const CONSUMER_RANGE = "[1.0.0,2.0.0)";
+
+
+        virtual ~ICalc() = default;
+
+        virtual double calc(double input) = 0;
     };
 }
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BundleActivator{ctx};
-}
-
+#endif //CELIX_ICALC_H

@@ -20,15 +20,12 @@
 #ifndef BAZ_ACTIVATOR_H
 #define BAZ_ACTIVATOR_H
 
-#include "celix/dm/DmActivator.h"
+#include "celix/IBundleActivator.h"
 
-using namespace celix::dm;
-
-class BazActivator : public DmActivator {
-private:
+class BazActivator : public celix::IBundleActivator {
 public:
-    BazActivator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init() override;
+    BazActivator(celix::BundleContext &ctx);
+    virtual ~BazActivator() = default;
 };
 
 #endif //BAZ_ACTIVATOR_H

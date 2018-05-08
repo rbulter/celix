@@ -17,18 +17,18 @@
  * under the License.
  */
 
-#ifndef FOO_ACTIVATOR_H
-#define FOO_ACTIVATOR_H
+#ifndef BAR_ACTIVATOR_H
+#define BAR_ACTIVATOR_H
 
-#include "celix/dm/DmActivator.h"
+#include "celix/IBundleActivator.h"
+#include "example.h"
 
-using namespace celix::dm;
-
-class FooActivator : public DmActivator {
-private:
+class BarActivator : public celix::IBundleActivator {
 public:
-    FooActivator(DependencyManager& mng) : DmActivator(mng) {}
-    virtual void init() override;
+    BarActivator(celix::BundleContext &ctx);
+    virtual ~BarActivator() = default;
+private:
+    example_t cExample {nullptr, nullptr};
 };
 
-#endif //FOO_ACTIVATOR_H
+#endif //BAR_ACTIVATOR_H

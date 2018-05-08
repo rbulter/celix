@@ -17,27 +17,16 @@
  * under the License.
  */
 
-#include "Foo.h"
-#include "FooActivator.h"
+#ifndef FOO_ACTIVATOR_H
+#define FOO_ACTIVATOR_H
 
-using namespace celix::dm;
+#include "celix/IBundleActivator.h"
 
-DmActivator* DmActivator::create(DependencyManager& mng) {
-    return new FooActivator(mng);
-}
+class FooActivator : public celix::IBundleActivator {
+private:
+public:
+    FooActivator(celix::BundleContext &ctx);
+    virtual ~FooActivator() = default;
+};
 
-void FooActivator::init() {
-
-    Component<Foo>& cmp = mng.createComponent<Foo>()
-        .setCallbacks(nullptr, &Foo::start, &Foo::stop, nullptr);
-
-    cmp.createServiceDependency<IAnotherExample>()
-            .setRequired(true)
-            .setVersionRange(IANOTHER_EXAMPLE_CONSUMER_RANGE)
-            .setCallbacks(&Foo::setAnotherExample);
-
-    cmp.createCServiceDependency<example_t>(EXAMPLE_NAME)
-            .setRequired(false)
-            .setVersionRange(EXAMPLE_CONSUMER_RANGE)
-            .setCallbacks(&Foo::setExample);
-}
+#endif //FOO_ACTIVATOR_H

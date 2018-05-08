@@ -20,21 +20,21 @@
 #include "Baz.h"
 #include "BazActivator.h"
 
-using namespace celix::dm;
+#include "celix/BundleActivator.h"
 
-DmActivator* DmActivator::create(DependencyManager& mng) {
-    return new BazActivator(mng);
+celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
+    return new BazActivator{ctx};
 }
 
-void BazActivator::init() {
-
+BazActivator::BazActivator(celix::BundleContext& ctx) {
+    auto &mng = ctx.getDependencyManager();
     Component<Baz>& cmp = mng.createComponent<Baz>()
         .setCallbacks(nullptr, &Baz::start, &Baz::stop, nullptr);
 
     cmp.createServiceDependency<IAnotherExample>()
             .setRequired(true)
             .setStrategy(DependencyUpdateStrategy::locking)
-            .setVersionRange(IANOTHER_EXAMPLE_CONSUMER_RANGE)
+            .setVersionRange(IAnotherExample::CONSUMER_RANGE)
             .setCallbacks(&Baz::addAnotherExample, &Baz::removeAnotherExample);
 
     cmp.createCServiceDependency<example_t>(EXAMPLE_NAME)

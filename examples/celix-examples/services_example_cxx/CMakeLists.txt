@@ -5,39 +5,35 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-#
+# 
 #   http://www.apache.org/licenses/LICENSE-2.0
-#
+# 
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-if (BUILD_DEPENDENCY_MANAGER_CXX)
-    include_directories(
-            ${PROJECT_SOURCE_DIR}/dependency_manager/public/include
-            ${PROJECT_SOURCE_DIR}/dependency_manager_cxx/include
-            ${PROJECT_SOURCE_DIR}/utils/public/include
-            api
-    )
 
-    add_subdirectory(bar)
-    add_subdirectory(foo)
-    add_subdirectory(baz)
+add_library(services_example_api_cxx INTERFACE)
+target_include_directories(services_example_api_cxx INTERFACE api)
 
-    add_celix_container(services_example_cxx
-        GROUP services_example
-        COPY
-        BUNDLES
-            Celix::shell
-            Celix::shell_tui
-            dm_shell
-            bar_cxx
-            foo_cxx
-            baz_cxx
-        PROPERTIES
-            example=value
-    )
+add_celix_bundle(provider_example_cxx
+        VERSION 1.0.0
+        SOURCES src/ProviderBundleActivator.cc
+)
+target_link_libraries(provider_example_cxx PRIVATE services_example_api_cxx)
 
-endif ()
+add_celix_bundle(consumer_example_cxx
+        VERSION 1.0.0
+        SOURCES src/ConsumerBundleActivator.cc
+)
+target_link_libraries(consumer_example_cxx PRIVATE services_example_api_cxx)
+
+add_celix_container(services_example_cxx
+    BUNDLES
+        Celix::shell
+        Celix::shell_tui
+        provider_example_cxx
+        consumer_example_cxx
+)
