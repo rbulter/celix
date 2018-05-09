@@ -19,7 +19,7 @@
 
 #include <iostream>
 #include <thread>
-#include <mutex>
+#include <atomic>
 #include <vector>
 
 #include "celix/BundleActivator.h"
@@ -44,25 +44,23 @@ namespace {
                 CalcImpl calc{};
                 std::vector<long> svcIds{};
                 bool up = true;
-                while (this->isRunning()) {
+                while (this->running) {
                     if (up) {
                         celix::Properties props{};
-                        props[celix::Constants::SERVICE_RANKING] = "10"; //TODO random
+                        props[celix::Constants::SERVICE_RANKING] = std::to_string(std::rand());
                         long svcId = ctx.registerService(example::ICalc::NAME, &calc, example::ICalc::VERSION, std::move(props));
                         svcIds.push_back(svcId);
                     } else {
-                        if (svcIds.size() > 0) {
-                            long svcId = svcIds.back();
-                            svcIds.pop_back();
-                            ctx.unregisterService(svcId);
-                        } else {
-                            up = true;
-                        }
+                        long svcId = svcIds.back();
+                        svcIds.pop_back();
+                        ctx.unregisterService(svcId);
                     }
-                    if (svcIds.size() >= 100) {
-                        up = false;
+                    if (up) {
+                        up = svcIds.size() < 100;
+                    } else {
+                        up = svcIds.size() == 0;
                     }
-                    std::this_thread::yield();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(88));
                 }
                 std::cout << "Exiting service register thread, services count is " << svcIds.size() << std::endl;
                 std::for_each(svcIds.begin(), svcIds.end(), [&ctx](long id){ctx.unregisterService(id);});
@@ -71,24 +69,14 @@ namespace {
         }
 
         virtual ~BundleActivator() {
-            this->setRunning(false);
+            this->running = false;
             th.join();
         }
 
-        void setRunning(bool r) {
-            std::lock_guard<std::mutex> lock{this->mutex};
-            this->running = r;
-        }
-
-        bool isRunning() {
-            std::lock_guard<std::mutex> lock{this->mutex};
-            return this->running;
-        }
     private:
         std::thread th{};
 
-        std::mutex mutex{}; //protects running
-        bool running{true};
+        std::atomic<bool> running{true};
     };
 }
 

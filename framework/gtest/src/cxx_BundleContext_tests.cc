@@ -37,6 +37,23 @@ private:
     std::unique_ptr<celix::Framework> fw_ptr{nullptr};
 };
 
+//Test interface
+class ITestSvc {
+public:
+    static constexpr const char * const NAME = "ITestSvc";
+
+    virtual ~ITestSvc(){};
+    virtual int calc(int input) = 0;
+};
+
+//Test implementation
+class TestImpl : public ITestSvc {
+public:
+    virtual ~TestImpl(){};
+    int calc(int input) override { return input * 42; }
+};
+
+
 TEST_F(BundleContextTest, TestInstallBundle) {
     auto &ctx = this->framework().getFrameworkContext();
 
@@ -70,36 +87,50 @@ TEST_F(BundleContextTest, RegisterCServiceTest) {
     EXPECT_TRUE(svcId2 > 0);
     EXPECT_NE(svcId, svcId2); //new registration new id
     ctx.unregisterService(svcId2);
+
+    //NOTE compile error -> cxxSvc is not POD
+    //TestImpl cxxSvc{};
+    //ctx.registerCService(ITestSvc::NAME, &cxxSvc);
+}
+
+TEST_F(BundleContextTest, RegisterServiceTest) {
+    auto &ctx = this->framework().getFrameworkContext();
+
+    TestImpl svc1{};
+
+    long svcId = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
+    EXPECT_TRUE(svcId > 0);
+    ctx.unregisterService(svcId);
+
+    long svcId2 = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
+    EXPECT_TRUE(svcId2 > 0);
+    EXPECT_NE(svcId, svcId2); //new registration new id
+    ctx.unregisterService(svcId2);
 }
 
 TEST_F(BundleContextTest, UseService) {
-    struct test_svc {
-        int (*calc)(int input);
-    };
-
     auto &ctx = this->framework().getFrameworkContext();
 
-    test_svc svc1{};
-    svc1.calc = [](int input) -> int {
-        return input * 42;
-    };
+    TestImpl svc1{};
 
-    long svcId = ctx.registerCService("test service", &svc1);
+    long svcId = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
     EXPECT_TRUE(svcId > 0);
 
 
     int result = -1;
-    std::function<void(test_svc &svc, const celix::Properties&, const celix::Bundle&)> func = [&result](test_svc &svc, const celix::Properties&, const celix::Bundle&) {
+    std::function<void(ITestSvc &svc, const celix::Properties&, const celix::Bundle&)> func = [&result](ITestSvc &svc, const celix::Properties&, const celix::Bundle&) {
         result = svc.calc(1);
     };
-    ctx.useService<test_svc>(svcId, "test service", func);
+    bool called = ctx.useService<ITestSvc>(ITestSvc::NAME, func);
+    EXPECT_TRUE(called);
     EXPECT_EQ(result, 42);
 
-    result = -1;
-    ctx.useService<test_svc>(svcId, "test service", [&result](test_svc &svc, const celix::Properties&, const celix::Bundle&) {
-        result = svc.calc(2);
-    });
-    EXPECT_EQ(result, 84);
+//    result = -1;
+//    called = ctx.useServiceWithId<ITestSvc>(svcId, ITestSvc::NAME, [&result](ITestSvc &svc, const celix::Properties&, const celix::Bundle&) {
+//        result = svc.calc(2);
+//    });
+//    EXPECT_TRUE(called);
+//    EXPECT_EQ(result, 84);
 
     ctx.unregisterService(svcId);
 }
@@ -107,16 +138,6 @@ TEST_F(BundleContextTest, UseService) {
 TEST_F(BundleContextTest, UseServices) {
     auto &ctx = this->framework().getFrameworkContext();
 
-    class ITestSvc {
-    public:
-        virtual ~ITestSvc(){};
-        virtual int calc(int input) = 0;
-    };
-    class TestImpl : public ITestSvc {
-    public:
-        virtual ~TestImpl(){};
-        int calc(int input) override { return input * 42; }
-    };
     TestImpl svc{};
 
     long svcId1 = ctx.registerService<ITestSvc>("test service", &svc);
@@ -146,12 +167,6 @@ TEST_F(BundleContextTest, TrackService) {
     auto &ctx = this->framework().getFrameworkContext();
 
     int count = 0;
-
-    class ITestSvc {
-    public:
-        virtual ~ITestSvc(){};
-        virtual int calc(int input) = 0;
-    };
 
     ITestSvc *svc1 = (ITestSvc*)0x100; //no ranking
     ITestSvc *svc2 = (ITestSvc*)0x200; //no ranking

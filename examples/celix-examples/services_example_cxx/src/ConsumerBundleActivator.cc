@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <thread>
+#include <atomic>
 
 #include "celix/BundleActivator.h"
 
@@ -27,15 +28,21 @@
 namespace {
     class BundleActivator : public celix::IBundleActivator {
     public:
-        BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {}
+        BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {
+            this->trackerId = ctx.trackServices<example::ICalc>(example::ICalc::NAME,
+                 [this](example::ICalc *, const celix::Properties &, const celix::Bundle&) {  this->trackCount += 1; },
+                 [this](example::ICalc *, const celix::Properties &, const celix::Bundle&) {  this->trackCount -= 1; });
+        }
 
         virtual ~BundleActivator() {
-                this->useThread.join();
+            ctx.stopTracker(this->trackerId);
+            this->running = false;
+            this->useThread.join();
         }
 
     protected:
         void use() {
-                while(this->running) {
+                while(running) {
                         int count = 0;
                         double total = 0;
                         ctx.useServices<example::ICalc>(example::ICalc::NAME, [&](example::ICalc &calc, const celix::Properties &, const celix::Bundle&) {
@@ -43,26 +50,28 @@ namespace {
                                 total += calc.calc(1);
                         });
                         std::cout << "Called calc " << count << " times. Total is " << total << std::endl;
+
+                        ctx.useService<example::ICalc>(example::ICalc::NAME, [&](example::ICalc &, const celix::Properties &props, const celix::Bundle &bnd){
+                           long rank = celix::getProperty(props, celix::Constants::SERVICE_RANKING, -1L);
+                           long svcId = celix::getProperty(props, celix::Constants::SERVICE_ID, -1L);
+                           long bndId = bnd.getBundleId();
+                           std::cout << "Found highest ranking call with rank " << rank << " and service id " << svcId << " from bundle " << bndId << std::endl;
+                        });
+
+                        std::cout << "track counter is " << this->trackCount << std::endl;
+
                         std::this_thread::sleep_for(std::chrono::seconds(5));
                 }
         }
 
-        void setRunning(bool r) {
-                std::lock_guard<std::mutex> lock{this->mutex};
-                this->running = r;
-        }
-
-        bool isRunning() {
-                std::lock_guard<std::mutex> lock{this->mutex};
-                return this->running;
-        }
-
     private:
         celix::BundleContext &ctx;
+
+        long trackerId{-1};
         std::thread useThread{[this] { this->use(); }};
 
-        std::mutex mutex{}; //protects running
-        bool running{true};
+        std::atomic<bool> running{true};
+        std::atomic<int> trackCount{0};
     };
 }
 

@@ -37,6 +37,49 @@ namespace celix {
         class DependencyManager;
     }
 
+    template<typename I>
+    struct ServiceUseOptions {
+        /*
+         * Service filter info
+         */
+        const std::string &serviceName{}; //required
+        const std::string &versionRange{};
+        const std::string &filter{};
+        const std::string &lang{}; //default will be C++
+
+
+        /*
+         * Callbacks
+         */
+        std::function<void(I &svc)> use{};
+        std::function<void(I &svc, const celix::Properties &props)> useWithProperties{};
+        std::function<void(I &svc, const celix::Properties &props, celix::Bundle &svcOwner)> useWithOwner{};
+    };
+
+    template<typename I>
+    struct ServiceTrackingOptions {
+        /*
+         * Service filter info
+         */
+        const std::string &serviceName{}; //required
+        const std::string &versionRange{};
+        const std::string &filter{};
+        const std::string &lang{}; //default will be C++
+
+        std::function<void(I* svc)> set{};
+        std::function<void(I* svc)> add{};
+        std::function<void(I* svc)> remove{};
+
+        std::function<void(I* svc, const celix::Properties &props)> setWithProperties{};
+        std::function<void(I* svc, const celix::Properties &props)> addWithProperties{};
+        std::function<void(I* svc, const celix::Properties &props)> removeWithProperties{};
+
+        std::function<void(I* svc, const celix::Properties &props, const celix::Bundle &svcOwner)> setWithOwner{};
+        std::function<void(I* svc, const celix::Properties &props, const celix::Bundle &svcOwner)> addWithOwner{};
+        std::function<void(I* svc, const celix::Properties &props, const celix::Bundle &svcOwner)> removeWithOwner{};
+    };
+
+
     struct BundleRegistrationOptions {
         std::string id{};
         std::string name{};
@@ -68,6 +111,7 @@ namespace celix {
 
         template<typename I>
         long registerCService(const std::string &serviceName, I *svc, const std::string &version = "", Properties props = {}) noexcept {
+            static_assert(std::is_pod<I>::value, "Service I must be a 'Plain Old Data' object");
             return this->registerServiceInternal(serviceName, svc, version, celix::Constants::SERVICE_C_LANG, std::move(props));
         }
 
@@ -90,8 +134,6 @@ namespace celix {
         *
         * @param ctx The bundle context.
         * @param serviceName The required service name to track
-        * @param serviceVersionRange Optional the service version range to track. Can be empty ("")
-        * @param filter Optional the LDAP filter to use. Can be empty ("")
         * @param set is a required callback, which will be called when a new highest ranking service is set.
         * @return the tracker id or < 0 if unsuccessful.
         */
@@ -111,9 +153,6 @@ namespace celix {
          *
          * @param ctx The bundle context.
          * @param serviceName The required service name to track
-         * @param serviceVersionRange Optional the service version range to track
-         * @param filter Optional the LDAP filter to use
-         * @param callbackHandle The data pointer, which will be used in the callbacks
          * @param add is a required callback, which will be called when a service is added and initially for the existing service.
          * @param remove is a required callback, which will be called when a service is removed
          * @return the tracker id or < 0 if unsuccessful.
@@ -141,13 +180,13 @@ namespace celix {
         //TODO add trackCService(s) variants
 
         /**
-         * Note use fucntion by const reference. Only used during the call.
+         * Note use function by const reference. Only used during the call.
          * @param serviceId
          * @param I
          * @return
          */
         template<typename I>
-        bool useService(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &/*use*/) noexcept {
+        bool useServiceWithId(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &/*use*/) noexcept {
             std::string filter = std::string{"(service.id="} + std::to_string(serviceId) + std::string{")"};
             //TODO use useServiceWithOptions return this->useService<I>(serviceName, "", filter, use);
             return false;
