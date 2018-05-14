@@ -26,9 +26,11 @@
 #include "bundle_context_private.h"
 #include "framework_private.h"
 #include "bundle.h"
+#include "celix_bundle.h"
 #include "celix_log.h"
 #include "service_tracker.h"
 #include "dm_dependency_manager.h"
+#include "celix_array_list.h"
 
 static celix_status_t bundleContext_bundleChanged(void *handle, bundle_event_t *event);
 static void bundleContext_cleanupBundleTracker(bundle_context_t *ct);
@@ -425,34 +427,47 @@ celix_status_t bundleContext_getPropertyWithDefault(bundle_context_pt context, c
  **********************************************************************************************************************/
 
 
-long celix_bundleContext_registerService(bundle_context_t *ctx, const char *serviceName, void *svc, const char *serviceVersion, properties_t *properties) {
-    return celix_bundleContext_registerServiceForLang(ctx, serviceName, svc, serviceVersion, CELIX_FRAMEWORK_SERVICE_C_LANGUAGE, properties);
+long celix_bundleContext_registerService(bundle_context_t *ctx, void *svc, const char *serviceName, celix_properties_t *properties) {
+    celix_service_registration_options_t opts = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
+    opts.svc = svc;
+    opts.serviceName = serviceName;
+    opts.properties = properties;
+    return celix_bundleContext_registerServiceWithOptions(ctx, &opts);
 }
 
 
-long celix_bundleContext_registerServiceForLang(bundle_context_t *ctx, const char *serviceName, void *svc, const char *serviceVersion, const char* lang, properties_t *properties) {
+long celix_bundleContext_registerServiceFactory(celix_bundle_context_t *ctx, celix_service_factory_t *factory, const char *serviceName, celix_properties_t *props) {
+    celix_service_registration_options_t opts = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
+    opts.factory = factory;
+    opts.serviceName = serviceName;
+    opts.properties = props;
+    return celix_bundleContext_registerServiceWithOptions(ctx, &opts);
+}
+
+long celix_bundleContext_registerServiceWithOptions(bundle_context_t *ctx, const celix_service_registration_options_t *opts) {
     long svcId = -1;
-    if (properties == NULL) {
-        properties = properties_create();
-    }
     service_registration_t *reg = NULL;
-    if (serviceVersion != NULL) {
-        properties_set(properties, CELIX_FRAMEWORK_SERVICE_VERSION, serviceVersion);
+    celix_properties_t *props = opts->properties;
+    if (props == NULL) {
+        props = celix_properties_create();
     }
-    if (serviceName != NULL && lang != NULL) {
-        properties_set(properties, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
-        bundleContext_registerService(ctx, serviceName, svc, properties, &reg);
+    if (opts->serviceVersion != NULL && strncmp("", opts->serviceVersion, 1) != 0) {
+        celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, opts->serviceVersion);
+    }
+    const char *lang = opts->serviceLanguage != NULL && strncmp("", opts->serviceLanguage, 1) != 0 ? opts->serviceLanguage : CELIX_FRAMEWORK_SERVICE_C_LANGUAGE;
+    celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
+    if (opts->serviceName != NULL && strncmp("", opts->serviceName, 1) != 0) {
+        if (opts->factory != NULL) {
+            reg = celix_framework_registerServiceFactory(ctx->framework, ctx->bundle, opts->serviceName, opts->factory, props);
+        } else {
+            bundleContext_registerService(ctx, opts->serviceName, opts->svc, props, &reg);
+        }
         svcId = serviceRegistration_getServiceId(reg); //save to call with NULL
     } else {
-        if (serviceName == NULL) {
-            framework_logIfError(logger, CELIX_ILLEGAL_ARGUMENT, NULL, "Required serviceName argument is NULL");
-        }
-        if (lang == NULL) {
-            framework_logIfError(logger, CELIX_ILLEGAL_ARGUMENT, NULL, "Required lang argument is NULL");
-        }
+        framework_logIfError(logger, CELIX_ILLEGAL_ARGUMENT, NULL, "Required serviceName argument is NULL");
     }
     if (svcId < 0) {
-        properties_destroy(properties);
+        properties_destroy(props);
     } else {
         celixThreadMutex_lock(&ctx->mutex);
         arrayList_add(ctx->svcRegistrations, reg);
@@ -532,7 +547,7 @@ static celix_status_t bundleContext_bundleChanged(void *listenerSvc, bundle_even
 
 long celix_bundleContext_trackBundlesWithOptions(
         bundle_context_t* ctx,
-        const celix_bundle_tracker_options_t *opts) {
+        const celix_bundle_tracking_options_t *opts) {
     long trackId = -1;
     struct celix_bundle_context_bundle_tracker *tracker = calloc(1, sizeof(*tracker));
     if (tracker != NULL) {
@@ -567,7 +582,7 @@ long celix_bundleContext_trackBundles(
         void* callbackHandle,
         void (*onStarted)(void* handle, const bundle_t *bundle),
         void (*onStopped)(void *handle, const bundle_t *bundle)) {
-    celix_bundle_tracker_options_t opts;
+    celix_bundle_tracking_options_t opts;
     memset(&opts, 0, sizeof(opts));
     opts.callbackHandle = callbackHandle;
     opts.onStarted = onStarted;
@@ -676,15 +691,14 @@ bool celix_bundleContext_useServiceWithId(
         long serviceId,
         const char *serviceName,
         void *callbackHandle,
-        void (*use)(void *handle, void *svc, const properties_t *props, const bundle_t *owner)) {
-    celix_service_use_options_t opts;
-    memset(&opts, 0, sizeof(opts));
+        void (*use)(void *handle, void *svc)) {
+    celix_service_use_options_t opts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
 
     char filter[64];
     snprintf(filter, 64, "(%s=%li)", OSGI_FRAMEWORK_SERVICE_ID, serviceId);
 
-    opts.serviceName = serviceName;
-    opts.filter = filter;
+    opts.filter.serviceName = serviceName;
+    opts.filter.filter = filter;
     opts.callbackHandle = callbackHandle;
     opts.use = use;
     return celix_bundleContext_useServiceWithOptions(ctx, &opts);
@@ -694,10 +708,9 @@ bool celix_bundleContext_useService(
         bundle_context_t *ctx,
         const char* serviceName,
         void *callbackHandle,
-        void (*use)(void *handle, void *svc, const properties_t *props, const bundle_t *owner)) {
-    celix_service_use_options_t opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.serviceName = serviceName;
+        void (*use)(void *handle, void *svc)) {
+    celix_service_use_options_t opts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
+    opts.filter.serviceName = serviceName;
     opts.callbackHandle = callbackHandle;
     opts.use = use;
     return celix_bundleContext_useServiceWithOptions(ctx, &opts);
@@ -708,14 +721,14 @@ void celix_bundleContext_useServices(
         bundle_context_t *ctx,
         const char* serviceName,
         void *callbackHandle,
-        void (*use)(void *handle, void *svc, const properties_t *props, const bundle_t *owner)) {
-    celix_service_use_options_t opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.serviceName = serviceName;
+        void (*use)(void *handle, void *svc)) {
+    celix_service_use_options_t opts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
+    opts.filter.serviceName = serviceName;
     opts.callbackHandle = callbackHandle;
     opts.use = use;
     celix_bundleContext_useServicesWithOptions(ctx, &opts);
 }
+
 
 bool celix_bundleContext_useServiceWithOptions(
         celix_bundle_context_t *ctx,
@@ -725,14 +738,23 @@ bool celix_bundleContext_useServiceWithOptions(
     memset(&trkOpts, 0, sizeof(trkOpts));
 
     if (opts != NULL) {
-        trkOpts.serviceName = opts->serviceName;
+        trkOpts.filter.serviceName = opts->filter.serviceName;
         trkOpts.filter = opts->filter;
-        trkOpts.versionRange = opts->versionRange;
-        trkOpts.lang = opts->lang;
+        trkOpts.filter.versionRange = opts->filter.versionRange;
+        trkOpts.filter.serviceLanguage = opts->filter.serviceLanguage;
 
         service_tracker_t *trk = celix_serviceTracker_createWithOptions(ctx, &trkOpts);
         if (trk != NULL) {
-            called = celix_serviceTracker_useHighestRankingService(trk, opts->serviceName, opts->callbackHandle, opts->use);
+            if (opts->use != NULL) {
+
+            }
+            if (opts->useWithProperties != NULL) {
+
+            }
+            if (opts->useWithOwner != NULL) {
+
+            }
+            called = celix_serviceTracker_useHighestRankingService(trk, opts->filter.serviceName, opts->callbackHandle, opts->use, opts->useWithProperties, opts->useWithOwner);
             celix_serviceTracker_destroy(trk);
         }
     }
@@ -744,18 +766,17 @@ bool celix_bundleContext_useServiceWithOptions(
 void celix_bundleContext_useServicesWithOptions(
         celix_bundle_context_t *ctx,
         const celix_service_use_options_t *opts) {
-    celix_service_tracking_options_t trkOpts;
-    memset(&trkOpts, 0, sizeof(trkOpts));
+    celix_service_tracking_options_t trkOpts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
 
     if (opts != NULL) {
-        trkOpts.serviceName = opts->serviceName;
-        trkOpts.filter = opts->filter;
-        trkOpts.versionRange = opts->versionRange;
-        trkOpts.lang = opts->lang;
+        trkOpts.filter.serviceName = opts->filter.serviceName;
+        trkOpts.filter.filter = opts->filter.filter;
+        trkOpts.filter.versionRange = opts->filter.versionRange;
+        trkOpts.filter.serviceLanguage = opts->filter.serviceLanguage;
 
         service_tracker_t *trk = celix_serviceTracker_createWithOptions(ctx, &trkOpts);
         if (trk != NULL) {
-            celix_serviceTracker_useServices(trk, opts->serviceName, opts->callbackHandle, opts->use);
+            celix_serviceTracker_useServices(trk, opts->filter.serviceName, opts->callbackHandle, opts->use, opts->useWithProperties, opts->useWithOwner);
             celix_serviceTracker_destroy(trk);
         }
     }
@@ -767,9 +788,8 @@ long celix_bundleContext_trackService(
         const char* serviceName,
         void* callbackHandle,
         void (*set)(void* handle, void* svc)) {
-    celix_service_tracking_options_t opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.serviceName = serviceName;
+    celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+    opts.filter.serviceName = serviceName;
     opts.callbackHandle = callbackHandle;
     opts.set = set;
     return celix_bundleContext_trackServicesWithOptions(ctx, &opts);
@@ -782,9 +802,8 @@ long celix_bundleContext_trackServices(
         void* callbackHandle,
         void (*add)(void* handle, void* svc),
         void (*remove)(void* handle, void* svc)) {
-    celix_service_tracking_options_t opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.serviceName = serviceName;
+    celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+    opts.filter.serviceName = serviceName;
     opts.callbackHandle = callbackHandle;
     opts.add = add;
     opts.remove = remove;
@@ -802,4 +821,50 @@ long celix_bundleContext_trackServicesWithOptions(bundle_context_t *ctx, const c
         celixThreadMutex_unlock(&ctx->mutex);
     }
     return trackerId;
+}
+
+long celix_bundleContext_findService(celix_bundle_context_t *ctx, const char *serviceName) {
+    celix_service_filter_options_t opts = CELIX_EMPTY_SERVICE_FILTER_OPTIONS;
+    opts.serviceName = serviceName;
+    return celix_bundleContext_findServiceWithOptions(ctx, &opts);
+}
+
+static void bundleContext_retrieveSvcId(void *handle, void *svc __attribute__((unused)), const celix_properties_t *props) {
+    long *svcId = handle;
+    *svcId = celix_properties_getAsLong(props, OSGI_FRAMEWORK_SERVICE_ID, -1L);
+}
+
+long celix_bundleContext_findServiceWithOptions(celix_bundle_context_t *ctx, const celix_service_filter_options_t *opts) {
+    long svcId = -1L;
+    celix_service_use_options_t useOpts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
+    memcpy(&useOpts.filter, opts, sizeof(useOpts.filter));
+    useOpts.callbackHandle = &svcId;
+    useOpts.useWithProperties = bundleContext_retrieveSvcId;
+    celix_bundleContext_useServiceWithOptions(ctx, &useOpts);
+    return svcId;
+}
+
+
+celix_array_list_t* celix_bundleContext_findServices(celix_bundle_context_t *ctx, const char *serviceName) {
+    celix_service_filter_options_t opts = CELIX_EMPTY_SERVICE_FILTER_OPTIONS;
+    opts.serviceName = serviceName;
+    return celix_bundleContext_findServicesWithOptions(ctx, &opts);
+}
+
+static void bundleContext_retrieveSvcIds(void *handle, void *svc __attribute__((unused)), const celix_properties_t *props) {
+    celix_array_list_t *list = handle;
+    if (list != NULL) {
+        long svcId = celix_properties_getAsLong(props, OSGI_FRAMEWORK_SERVICE_ID, -1L);
+        celix_arrayList_addLong(list, svcId);
+    }
+}
+
+celix_array_list_t* celix_bundleContext_findServicesWithOptions(celix_bundle_context_t *ctx, const celix_service_filter_options_t *opts) {
+    celix_array_list_t* list = celix_arrayList_create();
+    celix_service_use_options_t useOpts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
+    memcpy(&useOpts.filter, opts, sizeof(useOpts.filter));
+    useOpts.callbackHandle = list;
+    useOpts.useWithProperties = bundleContext_retrieveSvcIds;
+    celix_bundleContext_useServicesWithOptions(ctx, &useOpts);
+    return list;
 }

@@ -16,26 +16,10 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * service_factory.h
- *
- *  \date       Jun 26, 2011
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright	Apache License, Version 2.0
- */
-
 #ifndef SERVICE_FACTORY_H_
 #define SERVICE_FACTORY_H_
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef struct service_factory service_factory_t;
-typedef service_factory_t *service_factory_pt;
-#ifdef __cplusplus
-}
-#endif
-
+#include "celix_types.h"
 #include "celix_errno.h"
 #include "service_registration.h"
 #include "bundle.h"
@@ -47,10 +31,10 @@ extern "C" {
 struct service_factory {
     void *handle;
 
-    celix_status_t (*getService)(void *handle, bundle_pt bundle, service_registration_pt registration, void **service);
+    celix_status_t (*getService)(void *handle, celix_bundle_t *bnd, service_registration_pt registration, void **service);
 
     celix_status_t
-    (*ungetService)(void *handle, bundle_pt bundle, service_registration_pt registration, void **service);
+    (*ungetService)(void *handle, celix_bundle_t *bnd, service_registration_pt registration, void **service);
 };
 
 #ifdef __cplusplus

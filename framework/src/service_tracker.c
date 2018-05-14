@@ -30,6 +30,7 @@
 #include "celix_log.h"
 #include "service_tracker_customizer_private.h"
 #include "bundle_context_private.h"
+#include "celix_array_list.h"
 
 static celix_status_t serviceTracker_track(service_tracker_pt tracker, service_reference_pt reference, service_event_pt event);
 static celix_status_t serviceTracker_untrack(service_tracker_pt tracker, service_reference_pt reference, service_event_pt event);
@@ -332,7 +333,7 @@ static celix_status_t serviceTracker_track(service_tracker_pt tracker, service_r
             celixThreadRwlock_unlock(&tracker->lock);
 
             serviceTracker_invokeAddService(tracker, tracked);
-            celix_serviceTracker_useHighestRankingService(tracker, tracked->serviceName, tracker, serviceTracker_checkAndInvokeSetService);
+            celix_serviceTracker_useHighestRankingService(tracker, tracked->serviceName, tracker, NULL, NULL, serviceTracker_checkAndInvokeSetService);
             tracked_decreaseUse(tracked);
         }
     }
@@ -482,7 +483,7 @@ static celix_status_t serviceTracker_untrack(service_tracker_pt tracker, service
     if (size == 0) {
         serviceTracker_checkAndInvokeSetService(tracker, NULL, NULL, NULL);
     } else {
-        celix_serviceTracker_useHighestRankingService(tracker, serviceName, tracker, serviceTracker_checkAndInvokeSetService);
+        celix_serviceTracker_useHighestRankingService(tracker, serviceName, tracker, NULL, NULL, serviceTracker_checkAndInvokeSetService);
     }
 
     framework_logIfError(logger, status, NULL, "Cannot untrack reference");
@@ -560,11 +561,10 @@ celix_service_tracker_t* celix_serviceTracker_create(
         const char *serviceName,
         const char *versionRange,
         const char *filter) {
-    celix_service_tracking_options_t opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.serviceName = serviceName;
-    opts.filter = filter;
-    opts.versionRange = versionRange;
+    celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+    opts.filter.serviceName = serviceName;
+    opts.filter.filter = filter;
+    opts.filter.versionRange = versionRange;
     return celix_serviceTracker_createWithOptions(ctx, &opts);
 }
 
@@ -573,7 +573,7 @@ celix_service_tracker_t* celix_serviceTracker_createWithOptions(
         const celix_service_tracking_options_t *opts
 ) {
     celix_service_tracker_t *tracker = NULL;
-    if (ctx != NULL && opts != NULL && opts->serviceName != NULL) {
+    if (ctx != NULL && opts != NULL && opts->filter.serviceName != NULL) {
         tracker = calloc(1, sizeof(*tracker));
         if (tracker != NULL) {
             tracker->context = ctx;
@@ -586,44 +586,41 @@ celix_service_tracker_t* celix_serviceTracker_createWithOptions(
             tracker->set = opts->set;
             tracker->add = opts->add;
             tracker->remove = opts->remove;
-            tracker->modified = opts->modified;
             tracker->setWithProperties = opts->setWithProperties;
             tracker->addWithProperties = opts->addWithProperties;
             tracker->removeWithProperties = opts->removeWithProperties;
-            tracker->modifiedWithProperties = opts->modifiedWithProperties;
             tracker->setWithOwner = opts->setWithOwner;
             tracker->addWithOwner = opts->addWithOwner;
             tracker->removeWithOwner = opts->removeWithOwner;
-            tracker->modifiedWithOwner = opts->modifiedWithOwner;
 
             //highest service state
             celixThreadMutex_create(&tracker->mutex, NULL);
             tracker->currentHighestServiceId = -1;
 
             //setting lang
-            const char *lang = opts->lang;
+            const char *lang = opts->filter.serviceLanguage;
             if (lang == NULL || strncmp("", lang, 1) == 0) {
                 lang = CELIX_FRAMEWORK_SERVICE_C_LANGUAGE;
             }
 
             //setting filter
-            if (opts->filter != NULL && opts->versionRange != NULL) {
+            if (opts->filter.filter != NULL && opts->filter.versionRange != NULL) {
                 //TODO version range
-                asprintf(&tracker->filter, "&((%s=%s)(%s=%s)%s)", OSGI_FRAMEWORK_OBJECTCLASS, opts->serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang, opts->filter);
-            } else if (opts->versionRange != NULL) {
+                asprintf(&tracker->filter, "&((%s=%s)(%s=%s)%s)", OSGI_FRAMEWORK_OBJECTCLASS, opts->filter.serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang, opts->filter.filter);
+            } else if (opts->filter.versionRange != NULL) {
                 //TODO version range
-                asprintf(&tracker->filter, "&((%s=%s)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, opts->serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
-            } else if (opts->filter != NULL) {
-                asprintf(&tracker->filter, "(&(%s=%s)(%s=%s)%s)", OSGI_FRAMEWORK_OBJECTCLASS, opts->serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang, opts->filter);
+                asprintf(&tracker->filter, "&((%s=%s)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, opts->filter.serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
+            } else if (opts->filter.filter != NULL) {
+                asprintf(&tracker->filter, "(&(%s=%s)(%s=%s)%s)", OSGI_FRAMEWORK_OBJECTCLASS, opts->filter.serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang, opts->filter.filter);
             } else {
-                asprintf(&tracker->filter, "(&(%s=%s)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, opts->serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
+                asprintf(&tracker->filter, "(&(%s=%s)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, opts->filter.serviceName, CELIX_FRAMEWORK_SERVICE_LANGUAGE, lang);
             }
 
             //TODO open on other thread?
             serviceTracker_open(tracker);
         }
     } else {
-        if (opts != NULL && opts->serviceName == NULL) {
+        if (opts != NULL && opts->filter.serviceName == NULL) {
             framework_log(logger, OSGI_FRAMEWORK_LOG_ERROR, __FUNCTION__, __BASE_FILE__, __LINE__,
                           "Error incorrect arguments. Missing service name.");
         } else {
@@ -645,7 +642,9 @@ bool celix_serviceTracker_useHighestRankingService(
         celix_service_tracker_t *tracker,
         const char *serviceName /*sanity*/,
         void *callbackHandle,
-        void (*use)(void *handle, void *svc, const celix_properties_t *props, const celix_bundle_t *owner)) {
+        void (*use)(void *handle, void *svc),
+        void (*useWithProperties)(void *handle, void *svc, const celix_properties_t *props),
+        void (*useWithOwner)(void *handle, void *svc, const celix_properties_t *props, const celix_bundle_t *owner)) {
     bool called = false;
     celix_tracked_entry_t *tracked = NULL;
     celix_tracked_entry_t *highest = NULL;
@@ -673,7 +672,15 @@ bool celix_serviceTracker_useHighestRankingService(
 
     if (highest != NULL) {
         //got service, call, decrease use count an signal useCond after.
-        use(callbackHandle, highest->service, highest->properties, highest->serviceOwner);
+        if (use != NULL) {
+            use(callbackHandle, highest->service);
+        }
+        if (useWithProperties != NULL) {
+            useWithProperties(callbackHandle, highest->service, highest->properties);
+        }
+        if (useWithOwner != NULL) {
+            useWithOwner(callbackHandle, highest->service, highest->properties, highest->serviceOwner);
+        }
         called = true;
         tracked_decreaseUse(highest);
     }
@@ -685,7 +692,9 @@ void celix_serviceTracker_useServices(
         service_tracker_t *tracker,
         const char* serviceName /*sanity*/,
         void *callbackHandle,
-        void (*use)(void *handle, void *svc, const properties_t *props, const bundle_t *owner)) {
+        void (*use)(void *handle, void *svc),
+        void (*useWithProperties)(void *handle, void *svc, const celix_properties_t *props),
+        void (*useWithOwner)(void *handle, void *svc, const celix_properties_t *props, const celix_bundle_t *owner)) {
     int i;
 
     //first lock tracker, get tracked entries and increase use count
@@ -704,7 +713,15 @@ void celix_serviceTracker_useServices(
     for (i = 0; i < size; i++) {
         celix_tracked_entry_t *entry = entries[i];
         //got service, call, decrease use count an signal useCond after.
-        use(callbackHandle, entry->service, entry->properties, entry->serviceOwner);
+        if (use != NULL) {
+            use(callbackHandle, entry->service);
+        }
+        if (useWithProperties != NULL) {
+            useWithProperties(callbackHandle, entry->service, entry->properties);
+        }
+        if (useWithOwner != NULL) {
+            useWithOwner(callbackHandle, entry->service, entry->properties, entry->serviceOwner);
+        }
 
         tracked_decreaseUse(entry);
     }

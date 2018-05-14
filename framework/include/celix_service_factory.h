@@ -17,36 +17,28 @@
  *under the License.
  */
 
-#ifndef CELIX_CELIX_API_H_
-#define CELIX_CELIX_API_H_
-
-#include "properties.h"
-
-#include "array_list.h"
-#include "celix_array_list.h"
-
-#include "constants.h"
-
-#include "celix_utils_api.h"
-
+#include "celix_properties.h"
 #include "bundle.h"
-#include "celix_bundle.h"
 
-#include "bundle_context.h"
-#include "celix_bundle_context.h"
+#ifndef CELIX_SERVICE_FACTORY_H_
+#define CELIX_SERVICE_FACTORY_H_
 
-#include "service_registration.h"
-#include "service_factory.h"
-#include "service_reference.h"
-#include "service_tracker.h"
-#include "service_tracker_customizer.h"
-#include "listener_hook_service.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "framework.h"
-#include "celix_framework_factory.h"
-#include "celix_launcher.h"
+typedef struct celix_service_factory celix_service_factory_t;
 
-#include "dm_dependency_manager.h"
-#include "dm_service_dependency.h"
+struct celix_service_factory {
+    void *handle;
 
-#endif //CELIX_CELIX_API_H_
+    void* (*getService)(void *handle, const celix_bundle_t *requestingBundle, const celix_properties_t *svcProperties);
+
+    void (*ungetService)(void *handle, const celix_bundle_t *requestingBundle, const celix_properties_t *svcProperties);
+};
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* CELIX_SERVICE_FACTORY_H_ */
