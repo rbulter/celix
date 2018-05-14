@@ -33,12 +33,13 @@ extern "C" {
      **********************************************************************************************************************
      **********************************************************************************************************************/
     
-    long celix_bundle_getId(const bundle_t *bnd);
+    long celix_bundle_getId(const celix_bundle_t *bnd);
     
-    celix_bundle_state_e celix_bundle_getState(const bundle_t *bnd);
-    
-    
-    
+    celix_bundle_state_e celix_bundle_getState(const celix_bundle_t *bnd);
+
+    char* celix_bundle_getEntry(const celix_bundle_t *bnd, const char* name);
+
+
 #ifdef __cplusplus
 }
 #endif

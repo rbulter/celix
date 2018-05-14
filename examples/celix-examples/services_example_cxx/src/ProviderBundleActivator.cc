@@ -48,7 +48,7 @@ namespace {
                     if (up) {
                         celix::Properties props{};
                         props[celix::Constants::SERVICE_RANKING] = std::to_string(std::rand());
-                        long svcId = ctx.registerService(example::ICalc::NAME, &calc, example::ICalc::VERSION, std::move(props));
+                        long svcId = ctx.registerService<example::ICalc>(&calc, example::ICalc::NAME, std::move(props));
                         svcIds.push_back(svcId);
                     } else {
                         long svcId = svcIds.back();

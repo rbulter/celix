@@ -16,13 +16,6 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * framework_private.h
- *
- *  \date       May 22, 2013
- *  \author     <a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright  Apache License, Version 2.0
- */
 
 
 #ifndef FRAMEWORK_PRIVATE_H_
@@ -156,7 +149,7 @@ FRAMEWORK_EXPORT bundle_pt framework_getBundleById(framework_pt framework, long 
  **********************************************************************************************************************/
 
 void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
-void celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
+bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
 service_registration_t* celix_framework_registerServiceFactory(framework_t *fw , const celix_bundle_t *bnd, const char* serviceName, celix_service_factory_t *factory, celix_properties_t *properties);
 
 #endif /* FRAMEWORK_PRIVATE_H_ */

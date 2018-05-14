@@ -2772,16 +2772,19 @@ void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use
     }
 }
 
-void celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+    bool called = false;
     if (bundleId >= 0) {
         //TODO get bundle lock without throwing errors framework_acquireBundleLock() -> a more simple lock ??
         bundle_t *bnd = framework_getBundleById(fw, bundleId);
         celix_bundle_state_e bndState = celix_bundle_getState(bnd);
         if (bndState == OSGI_FRAMEWORK_BUNDLE_ACTIVE) {
             use(callbackHandle, bnd);
+            called = true;
         }
         //TODO unlock
     }
+    return called;
 }
 
 service_registration_t* celix_framework_registerServiceFactory(framework_t *fw , const celix_bundle_t *bnd, const char* serviceName, celix_service_factory_t *factory, celix_properties_t *properties) {

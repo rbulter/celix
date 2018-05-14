@@ -79,11 +79,11 @@ TEST_F(BundleContextTest, RegisterCServiceTest) {
 
     test_svc svc1{};
 
-    long svcId = ctx.registerCService("test service", &svc1);
+    long svcId = ctx.registerCService(&svc1, "test service");
     EXPECT_TRUE(svcId > 0);
     ctx.unregisterService(svcId);
 
-    long svcId2 = ctx.registerCService("test service", &svc1);
+    long svcId2 = ctx.registerCService(&svc1, "test service");
     EXPECT_TRUE(svcId2 > 0);
     EXPECT_NE(svcId, svcId2); //new registration new id
     ctx.unregisterService(svcId2);
@@ -98,11 +98,11 @@ TEST_F(BundleContextTest, RegisterServiceTest) {
 
     TestImpl svc1{};
 
-    long svcId = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
+    long svcId = ctx.registerService<ITestSvc>(&svc1, ITestSvc::NAME);
     EXPECT_TRUE(svcId > 0);
     ctx.unregisterService(svcId);
 
-    long svcId2 = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
+    long svcId2 = ctx.registerService<ITestSvc>(&svc1, ITestSvc::NAME);
     EXPECT_TRUE(svcId2 > 0);
     EXPECT_NE(svcId, svcId2); //new registration new id
     ctx.unregisterService(svcId2);
@@ -113,7 +113,7 @@ TEST_F(BundleContextTest, UseService) {
 
     TestImpl svc1{};
 
-    long svcId = ctx.registerService<ITestSvc>(ITestSvc::NAME, &svc1);
+    long svcId = ctx.registerService<ITestSvc>(&svc1, ITestSvc::NAME);
     EXPECT_TRUE(svcId > 0);
 
 
@@ -140,10 +140,10 @@ TEST_F(BundleContextTest, UseServices) {
 
     TestImpl svc{};
 
-    long svcId1 = ctx.registerService<ITestSvc>("test service", &svc);
+    long svcId1 = ctx.registerService<ITestSvc>(&svc, "test service");
     EXPECT_TRUE(svcId1 > 0);
 
-    long svcId2 = ctx.registerService<ITestSvc>("test service", &svc);
+    long svcId2 = ctx.registerService<ITestSvc>(&svc, "test service");
     EXPECT_TRUE(svcId2 > 0);
 
 
@@ -174,7 +174,7 @@ TEST_F(BundleContextTest, TrackService) {
     ITestSvc *svc4 = (ITestSvc*)0x400; //5 ranking
 
 
-    auto set = [&](ITestSvc *svc, const celix::Properties &, const celix::Bundle &) {
+    auto set = [&](ITestSvc *svc) {
         static int callCount = 0;
         callCount += 1;
         if (callCount == 1) {
@@ -191,8 +191,8 @@ TEST_F(BundleContextTest, TrackService) {
         count = callCount;
     };
 
-    long svcId1 = ctx.registerService("NA", svc1);
-    long svcId2 = ctx.registerService("NA", svc2);
+    long svcId1 = ctx.registerService(svc1, "NA");
+    long svcId2 = ctx.registerService(svc2, "NA");
 
     //starting tracker should lead to first set call
     long trackerId = ctx.trackService<ITestSvc>("NA", set);
@@ -201,12 +201,12 @@ TEST_F(BundleContextTest, TrackService) {
     //register svc3 should lead to second set call
     celix::Properties props3{};
     props3[OSGI_FRAMEWORK_SERVICE_RANKING] = "10";
-    long svcId3 = ctx.registerService("NA", svc3, "", std::move(props3));
+    long svcId3 = ctx.registerService(svc3, "NA", std::move(props3));
 
     //register svc4 should lead to no set (lower ranking)
     celix::Properties props4{};
     props4[OSGI_FRAMEWORK_SERVICE_RANKING] = "10";
-    long svcId4 = ctx.registerService("NA", svc4, "", props4);
+    long svcId4 = ctx.registerService(svc4, "NA", props4);
 
     //unregister svc3 should lead to set (new highest ranking)
     ctx.unregisterService(svcId3);

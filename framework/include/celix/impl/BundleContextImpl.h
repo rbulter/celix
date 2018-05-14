@@ -166,36 +166,30 @@ namespace celix {
 
         protected:
 
-            long registerServiceInternal(const std::string &serviceName, void *svc, const std::string &version, const std::string &lang, Properties props = {}) noexcept override {
-                properties_t *c_props = properties_create();
-                for (auto &pair : props) {
-                    properties_set(c_props, pair.first.c_str(), pair.second.c_str());
-                }
-                return celix_bundleContext_registerServiceForLang(this->c_ctx, serviceName.c_str(), svc, version.c_str(), lang.c_str(), c_props);
+            long registerServiceInternal(const celix_service_registration_options_t &opts) noexcept override {
+                return celix_bundleContext_registerServiceWithOptions(this->c_ctx, &opts);
             }
 
-            long trackServiceInternal(const std::string &serviceName,
-                                      std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept override  {
-                celix_service_tracking_options_t opts;
-                std::memset(&opts, 0, sizeof(opts));
+            long trackServiceInternal(const std::string &serviceName, std::function<void(void *svc)> set) noexcept override  {
+                celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
 
-                auto c_set = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+                auto c_set = [](void *handle, void *svc) {
                     auto *entry = static_cast<TrackEntry*>(handle);
-                    celix::Properties props = createFromCProps(c_props);
-                    auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    celix::impl::BundleImpl bnd{m_bnd};
-                    (entry->set)(svc, props, bnd);
+                    //celix::Properties props = createFromCProps(c_props);
+                    //auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
+                    //celix::impl::BundleImpl bnd{m_bnd};
+                    (entry->set)(svc);
                 };
                 const char *cname = serviceName.empty() ? nullptr : serviceName.c_str();
 
-                opts.serviceName = cname;
-                opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
+                opts.filter.serviceName = cname;
+                opts.filter.serviceLanguage = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
 
                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
                 te->set = std::move(set);
 
                 opts.callbackHandle = te.get();
-                opts.setWithOwner = c_set;
+                opts.set = c_set;
 
                 long id = celix_bundleContext_trackServicesWithOptions(this->c_ctx, &opts);
                 if (id >= 0) {
@@ -207,37 +201,37 @@ namespace celix {
 
             long trackServicesInternal(
                     const std::string &serviceName,
-                    std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
-                    std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
+                    std::function<void(void *svc)> add,
+                    std::function<void(void *svc)> remove
             ) noexcept override {
                 celix_service_tracking_options_t opts;
                 std::memset(&opts, 0, sizeof(opts));
 
-                auto c_add = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+                auto c_add = [](void *handle, void *svc) {
                     auto *entry = static_cast<TrackEntry*>(handle);
-                    celix::Properties props = createFromCProps(c_props);
-                    auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    celix::impl::BundleImpl bnd{m_bnd};
-                    (entry->add)(svc, props, bnd);
+                    //celix::Properties props = createFromCProps(c_props);
+                    //auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
+                    //celix::impl::BundleImpl bnd{m_bnd};
+                    (entry->add)(svc);
                 };
-                auto c_remove = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+                auto c_remove = [](void *handle, void *svc) {
                     auto *entry = static_cast<TrackEntry*>(handle);
-                    celix::Properties props = createFromCProps(c_props);
-                    auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
-                    celix::impl::BundleImpl bnd{m_bnd};
-                    (entry->remove)(svc, props, bnd);
+                    //celix::Properties props = createFromCProps(c_props);
+                    //auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
+                    //celix::impl::BundleImpl bnd{m_bnd};
+                    (entry->remove)(svc);
                 };
 
-                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();
-                opts.lang = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
+                opts.filter.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();
+                opts.filter.serviceLanguage = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
 
                 auto te = std::unique_ptr<TrackEntry>{new TrackEntry{}};
                 te->add = std::move(add);
                 te->remove = std::move(remove);
 
                 opts.callbackHandle = te.get();
-                opts.addWithOwner = c_add;
-                opts.removeWithOwner = c_remove;
+                opts.add = c_add;
+                opts.remove = c_remove;
 
                 long id = celix_bundleContext_trackServicesWithOptions(this->c_ctx, &opts);
                 if (id >= 0) {
@@ -261,10 +255,10 @@ namespace celix {
                 celix_service_use_options_t opts;
                 std::memset(&opts, 0, sizeof(opts));
 
-                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
-                opts.lang = celix::Constants::SERVICE_CXX_LANG;
+                opts.filter.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
+                opts.filter.serviceLanguage = celix::Constants::SERVICE_CXX_LANG;
                 opts.callbackHandle = (void*)&use;
-                opts.use = c_use;
+                opts.useWithOwner = c_use;
 
                 return celix_bundleContext_useServiceWithOptions(this->c_ctx, &opts);
             }
@@ -283,10 +277,10 @@ namespace celix {
                 celix_service_use_options_t opts;
                 std::memset(&opts, 0, sizeof(opts));
 
-                opts.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
-                opts.lang = celix::Constants::SERVICE_CXX_LANG;
+                opts.filter.serviceName = serviceName.empty() ? nullptr : serviceName.c_str();;
+                opts.filter.serviceLanguage = celix::Constants::SERVICE_CXX_LANG;
                 opts.callbackHandle = (void*)&use;
-                opts.use = c_use;
+                opts.useWithOwner = c_use;
 
                 celix_bundleContext_useServicesWithOptions(this->c_ctx, &opts);
             }
@@ -299,9 +293,17 @@ namespace celix {
             celix::dm::DependencyManager dm;
 
             struct TrackEntry {
-                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> set{};
-                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> add{};
-                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> remove{};
+                std::function<void(void *)> set{};
+                std::function<void(void *, const celix::Properties &)> setWithProperties{};
+                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> setWithOwner{};
+
+                std::function<void(void *)> add{};
+                std::function<void(void *, const celix::Properties &)> addWithProperties{};
+                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> addWithOwner{};
+
+                std::function<void(void *)> remove{};
+                std::function<void(void *, const celix::Properties &)> removeWithProperties{};
+                std::function<void(void *, const celix::Properties &, const celix::Bundle &)> removeWithOwner{};
             };
 
             std::mutex mutex{};
@@ -309,5 +311,61 @@ namespace celix {
         };
     }
 }
+
+
+template<typename I>
+long celix::BundleContext::registerService(I *svc, const std::string &serviceName, Properties props) noexcept {
+    celix::ServiceRegistrationOptions<I> opts{*svc, serviceName};
+    opts.properties = std::move(props);
+    return this->registerServiceWithOptions(opts);
+}
+
+template<typename I>
+long celix::BundleContext::registerCService(I *svc, const std::string &serviceName, Properties props) noexcept {
+    static_assert(std::is_pod<I>::value, "Service I must be a 'Plain Old Data' object");
+    celix::ServiceRegistrationOptions<I> opts{*svc, serviceName};
+    opts.properties = std::move(props);
+    opts.serviceLanguage = celix::Constants::SERVICE_C_LANG;
+    return this->registerServiceWithOptions(opts);
+}
+
+template<typename I>
+long celix::BundleContext::registerServiceWithOptions(const celix::ServiceRegistrationOptions<I>& opts) noexcept {
+    celix_properties_t *c_props = celix_properties_create();
+    for (auto &pair : opts.properties) {
+        celix_properties_set(c_props, pair.first.c_str(), pair.second.c_str());
+    }
+
+    celix_service_registration_options_t cOpts = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
+    cOpts.svc = static_cast<void*>(&opts.svc);
+    cOpts.serviceName = opts.serviceName.c_str();
+    cOpts.serviceVersion = opts.serviceVersion.c_str();
+    cOpts.serviceLanguage = opts.serviceLanguage.c_str();
+    cOpts.properties = c_props;
+    return this->registerServiceInternal(cOpts);
+}
+
+template<typename I>
+long celix::BundleContext::trackService(const std::string &serviceName, std::function<void(I *svc)> set) noexcept {
+    return this->trackServiceInternal(serviceName, [set](void *voidSvc) {
+        I* typedSvc = static_cast<I*>(voidSvc);
+        set(typedSvc);
+    });
+}
+
+template<typename I>
+long celix::BundleContext::trackServices(const std::string &serviceName,
+        std::function<void(I *svc)> add, std::function<void(I *svc)> remove) noexcept {
+    auto voidAdd = [add](void *voidSvc) {
+        I *typedSvc = static_cast<I *>(voidSvc);
+        add(typedSvc);
+    };
+    auto voidRemove = [remove](void *voidSvc) {
+        I *typedSvc = static_cast<I *>(voidSvc);
+        remove(typedSvc);
+    };
+    return this->trackServicesInternal(serviceName, std::move(voidAdd), std::move(voidRemove));
+}
+
 
 #endif //CELIX_IMPL_BUNDLECONTEXTIMPL_H

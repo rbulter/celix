@@ -16,13 +16,7 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * framework_mock.c
- *
- *  \date       Feb 7, 2013
- *  \author     <a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright  Apache License, Version 2.0
- */
+
 #include <CppUTestExt/MockSupport_c.h>
 #include "CppUTestExt/MockSupport_c.h"
 

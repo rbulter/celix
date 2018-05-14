@@ -38,15 +38,40 @@ namespace celix {
     }
 
     template<typename I>
-    struct ServiceUseOptions {
-        /*
-         * Service filter info
-         */
-        const std::string &serviceName{}; //required
-        const std::string &versionRange{};
-        const std::string &filter{};
-        const std::string &lang{}; //default will be C++
+    struct ServiceRegistrationOptions {
+        using type = I;
 
+        ServiceRegistrationOptions(I& _svc, const std::string& _serviceName) : svc{_svc}, serviceName{_serviceName} {};
+
+        I& svc;
+        const std::string serviceName;
+
+        celix::Properties properties{};
+        std::string serviceVersion{};
+        std::string serviceLanguage{celix::Constants::SERVICE_CXX_LANG};
+    };
+
+    template<typename I>
+    struct ServiceFilterOptions {
+        using type = I;
+
+        ServiceFilterOptions(const std::string &_serviceName) : serviceName{_serviceName} {};
+
+        std::string serviceName;
+
+        std::string versionRange{};
+        std::string filter{};
+        std::string lang{celix::Constants::SERVICE_CXX_LANG};
+    };
+
+
+    template<typename I>
+    struct ServiceUseOptions {
+        using type = I;
+
+        ServiceUseOptions(const std::string &serviceName) : filter{ServiceFilterOptions<I>{serviceName}} {};
+
+        ServiceFilterOptions<I> filter;
 
         /*
          * Callbacks
@@ -58,13 +83,11 @@ namespace celix {
 
     template<typename I>
     struct ServiceTrackingOptions {
-        /*
-         * Service filter info
-         */
-        const std::string &serviceName{}; //required
-        const std::string &versionRange{};
-        const std::string &filter{};
-        const std::string &lang{}; //default will be C++
+        using type = I;
+
+        ServiceTrackingOptions(const std::string serviceName) : filter{ServiceFilterOptions<I>{serviceName}} {};
+
+        ServiceFilterOptions<I> filter;
 
         std::function<void(I* svc)> set{};
         std::function<void(I* svc)> add{};
@@ -105,20 +128,13 @@ namespace celix {
         virtual ~BundleContext(){};
 
         template<typename I>
-        long registerService(const std::string &serviceName, I *svc, const std::string &version = "", Properties props = {}) noexcept {
-            return this->registerServiceInternal(serviceName, svc, version, celix::Constants::SERVICE_CXX_LANG, std::move(props));
-        }
+        long registerService(I *svc, const std::string &serviceName, Properties props = {}) noexcept;
 
         template<typename I>
-        long registerCService(const std::string &serviceName, I *svc, const std::string &version = "", Properties props = {}) noexcept {
-            static_assert(std::is_pod<I>::value, "Service I must be a 'Plain Old Data' object");
-            return this->registerServiceInternal(serviceName, svc, version, celix::Constants::SERVICE_C_LANG, std::move(props));
-        }
+        long registerCService(I *svc, const std::string &serviceName, Properties props = {}) noexcept;
 
         template<typename I>
-        long registerServiceForLang(const std::string &serviceName, I *svc, const std::string &version = "", const std::string &lang = celix::Constants::SERVICE_C_LANG, Properties props = {}) noexcept {
-            return this->registerServiceInternal(serviceName, svc, version, lang, std::move(props));
-        }
+        long registerServiceWithOptions(const celix::ServiceRegistrationOptions<I>& opts) noexcept;
 
         //TODO register std::function ?
 
@@ -138,15 +154,7 @@ namespace celix {
         * @return the tracker id or < 0 if unsuccessful.
         */
         template<typename I>
-        long trackService(
-                const std::string &serviceName,
-                std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> set
-        ) noexcept {
-            return this->trackServiceInternal(serviceName, [set](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
-                I* typedSvc = static_cast<I*>(voidSvc);
-                set(typedSvc, props, bnd);
-            });
-        }
+        long trackService(const std::string &serviceName, std::function<void(I *svc)> set) noexcept;
 
         /**
          * track services for the provided serviceName and/or filter.
@@ -158,25 +166,9 @@ namespace celix {
          * @return the tracker id or < 0 if unsuccessful.
          */
         template<typename I>
-        long trackServices(
-                const std::string &serviceName,
-                std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> add,
-                std::function<void(I *svc, const celix::Properties& props, const celix::Bundle &bnd)> remove
-        ) noexcept {
-            return this->trackServicesInternal(serviceName,
-                                               [add](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
-                                                   I *typedSvc = static_cast<I *>(voidSvc);
-                                                   add(typedSvc, props, bnd);
-                                               },
-                                               [remove](void *voidSvc, const celix::Properties& props, const celix::Bundle &bnd) {
-                                                   I *typedSvc = static_cast<I *>(voidSvc);
-                                                   remove(typedSvc, props, bnd);
-                                               }
-            );
-        }
+        long trackServices(const std::string &serviceName, std::function<void(I *svc)> add, std::function<void(I *svc)> remove) noexcept;
 
-        //TODO make add / remove service refs??
-        //TODO add trackService(s)WithOptions
+        //TODO trackService(s)WithOptions
         //TODO add trackCService(s) variants
 
         /**
@@ -262,16 +254,10 @@ namespace celix {
 
         virtual bool useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept = 0;
     protected:
-        virtual long registerServiceInternal(const std::string &serviceName, void *svc, const std::string &version, const std::string &lang, celix::Properties props) noexcept = 0;
+        virtual long registerServiceInternal(const celix_service_registration_options_t &opts) noexcept  = 0;
 
-        virtual long trackServiceInternal(const std::string &serviceName,
-                                         std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> set) noexcept = 0;
-
-        virtual long trackServicesInternal(
-                const std::string &serviceName,
-                std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> add,
-                std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &bnd)> remove
-        ) noexcept = 0;
+        virtual long trackServiceInternal(const std::string &serviceName, std::function<void(void *svc)> set) noexcept = 0;
+        virtual long trackServicesInternal(const std::string &serviceName, std::function<void(void *svc)> add, std::function<void(void *svc)> remove) noexcept = 0;
 
         virtual bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
         virtual void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;

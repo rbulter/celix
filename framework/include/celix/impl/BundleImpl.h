@@ -21,6 +21,7 @@
 #define CELIX_IMPL_BUNDLEIMPL_H
 
 #include "celix_bundle.h"
+#include "celix_bundle_context.h"
 
 namespace celix {
 

@@ -30,8 +30,8 @@ namespace {
     public:
         BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {
             this->trackerId = ctx.trackServices<example::ICalc>(example::ICalc::NAME,
-                 [this](example::ICalc *, const celix::Properties &, const celix::Bundle&) {  this->trackCount += 1; },
-                 [this](example::ICalc *, const celix::Properties &, const celix::Bundle&) {  this->trackCount -= 1; });
+                 [this](example::ICalc *) {  this->trackCount += 1; },
+                 [this](example::ICalc *) {  this->trackCount -= 1; });
         }
 
         virtual ~BundleActivator() {

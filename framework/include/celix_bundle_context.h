@@ -650,7 +650,7 @@ long celix_bundleContext_trackBundlesWithOptions(
  * @param use               The callback which will be called for the currently started bundles.
  *                          The bundle pointers are only guaranteed to be valid during the callback.
  */
-void celix_bundleContext_useBundle(
+bool celix_bundleContext_useBundle(
         celix_bundle_context_t *ctx,
         long bundleId,
         void *callbackHandle,
@@ -683,6 +683,13 @@ void celix_bundleContext_useBundles(
  * @return the dependency manager or NULL if unsuccessful.
  */
 dm_dependency_manager_t* celix_bundleContext_getDependencyManager(celix_bundle_context_t *ctx);
+
+/**
+ * Gets the bundle for this bundle context
+ *
+ * @return the bundle or NULL if unsuccessful.
+ */
+ celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx);
 
 #ifdef __cplusplus
 }

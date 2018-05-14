@@ -868,3 +868,7 @@ celix_array_list_t* celix_bundleContext_findServicesWithOptions(celix_bundle_con
     celix_bundleContext_useServicesWithOptions(ctx, &useOpts);
     return list;
 }
+
+celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx) {
+    return ctx->bundle;
+}

@@ -24,7 +24,7 @@ if(WIN32)
 endif(WIN32)
 
 set(SOURCES
-        src/attribute.c src/BundleImpl.c src/bundle_archive.c src/bundle_cache.c
+        src/attribute.c src/bundle.c src/bundle_archive.c src/bundle_cache.c
         src/bundle_context.c src/bundle_revision.c src/capability.c src/celix_errorcodes.c
         src/filter.c src/framework.c src/manifest.c src/ioapi.c
         src/manifest_parser.c src/miniunz.c src/module.c
@@ -148,7 +148,7 @@ if (ENABLE_TESTING AND FRAMEWORK_TESTS)
         private/mock/bundle_revision_mock.c
         private/mock/resolver_mock.c
         private/mock/version_mock.c
-            src/BundleImpl.c
+            src/bundle.c
         src/celix_errorcodes.c
         private/mock/celix_log_mock.c)
     target_link_libraries(bundle_test ${CPPUTEST_LIBRARY} ${CPPUTEST_EXT_LIBRARY} Celix::utils pthread)

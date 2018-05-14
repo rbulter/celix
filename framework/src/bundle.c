@@ -24,6 +24,7 @@
 #include "bundle_private.h"
 #include "resolver.h"
 #include "utils.h"
+#include "celix_bundle.h"
 
 celix_status_t bundle_createModule(bundle_pt bundle, module_pt *module);
 celix_status_t bundle_closeRevisions(bundle_pt bundle);

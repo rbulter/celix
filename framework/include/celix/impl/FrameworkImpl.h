@@ -17,8 +17,8 @@
  *under the License.
  */
 
-#ifndef CELIX_IMPL_FRAMEWORKIMPL_H
-#define CELIX_IMPL_FRAMEWORKIMPL_H
+#ifndef CXX_CELIX_IMPL_FRAMEWORKIMPL_H
+#define CXX_CELIX_IMPL_FRAMEWORKIMPL_H
 
 #include "celix_framework_factory.h"
 #include "framework.h"
@@ -81,8 +81,9 @@ namespace celix {
             }
             //TODO also in c virtual void breakWaitForStops() noexcept = 0;
 
-            virtual std::string getUUID() const noexcept override {
-                return std::string{framework_getUUID(this->c_fwm)};
+            std::string getUUID() const noexcept override {
+                //TODO return std::string{celix_framework_getUUID(this->c_fwm)};
+                return "TODO";
             }
 
             celix::BundleContext& getFrameworkContext() noexcept override {
@@ -123,4 +124,4 @@ namespace celix {
     }
 }
 
-#endif //CELIX_IMPL_FRAMEWORKIMPL_H
+#endif //CXX_CELIX_IMPL_FRAMEWORKIMPL_H

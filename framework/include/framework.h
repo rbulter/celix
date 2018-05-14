@@ -51,8 +51,6 @@ FRAMEWORK_EXPORT celix_status_t framework_stop(framework_t *framework);
 
 FRAMEWORK_EXPORT celix_status_t framework_destroy(framework_t *framework);
 
-FRAMEWORK_EXPORT const char* framework_getUUID(framework_t *framework);
-
 FRAMEWORK_EXPORT celix_status_t fw_init(framework_t *framework);
 
 FRAMEWORK_EXPORT celix_status_t framework_waitForStop(framework_t *framework);

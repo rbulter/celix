@@ -17,15 +17,15 @@
  *under the License.
  */
 
-#ifndef CXX_CELIX_FRAMEWORK_H
-#define CXX_CELIX_FRAMEWORK_H
-
 #include <functional>
 
 #include "celix/Constants.h"
 #include "celix/Properties.h"
 #include "Bundle.h"
 #include "celix/BundleContext.h"
+
+#ifndef CXX_CELIX_FRAMEWORK_H
+#define CXX_CELIX_FRAMEWORK_H
 
 namespace celix {
 
