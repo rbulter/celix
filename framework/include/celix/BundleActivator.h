@@ -17,66 +17,90 @@
  *under the License.
  */
 
+#include <memory>
+
+#include "celix/BundleContext.h"
+#include "celix/Framework.h"
+
+#include "celix/BundleContext.h"
+#include "celix/Framework.h"
+
 #ifndef CXX_CELIX_BUNDLEACTIVATOR_H
 #define CXX_CELIX_BUNDLEACTIVATOR_H
 
-#include <memory>
-
-#include "celix/IBundleActivator.h"
-#include "celix/Framework.h"
-
-#include "bundle_activator.h"
-
-/**
- * Note & Warning this is a header implementation of the C bundle activator.
- * As result this header can only be included ones or the activator symbols will
- * be duplicate (linking error).
- */
-
 namespace celix {
     /**
-     * The celix::createBundleActivator which needs to be implemented by a bundle.
-    */
-    static celix::IBundleActivator* createBundleActivator(celix::BundleContext &ctx);
+     * The BundleActivatorAdapter adapts the C bundle activator calls to a C++ bundle activator.
+     * The Type parameter (T) is the C++ bundle activator and needs to support:
+     * - A public default constructor.
+     * - A public destructor.
+     * - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
+     * - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
+     */
+    template<typename T>
+    class BundleActivatorAdapter {
+    private:
+        std::unique_ptr<celix::Framework> fw{};
+        std::unique_ptr<celix::BundleContext> ctx{};
+        std::unique_ptr<T> activator{};
+    public:
+        BundleActivatorAdapter(bundle_context_t *c_ctx) {
+            this->fw = std::unique_ptr<celix::Framework>{new celix::impl::FrameworkImpl{c_ctx}}; \
+            this->ctx = std::unique_ptr<celix::BundleContext>{new celix::impl::BundleContextImpl{c_ctx, *this->fw}}; \
+            this->activator = nullptr;
+        }
 
-    namespace impl {
-        struct ActivatorData {
-            std::unique_ptr<celix::Framework> fw{};
-            std::unique_ptr<celix::BundleContext> ctx{};
-            std::unique_ptr<celix::IBundleActivator> act{};
-        };
-    }
+        ~BundleActivatorAdapter() {
+            this->ctx = nullptr;
+            this->fw = nullptr;
+            this->activator = nullptr;
+        }
+
+        celix_status_t start() noexcept  {
+            this->activator = std::unique_ptr<T>{new T};
+            celix_status_t status = this->activator->start(*this->ctx);
+            if (status == CELIX_SUCCESS) {
+                this->ctx->getDependencyManager().start();
+            }
+            return status;
+        }
+
+        celix_status_t stop() noexcept {
+            celix_status_t status = this->activator->stop(*this->ctx);
+            if (status == CELIX_SUCCESS) {
+                this->ctx->getDependencyManager().stop();
+            }
+            this->activator = nullptr; //implicit delete
+            return status;
+        }
+    };
 }
 
-
-extern "C" celix_status_t bundleActivator_create(bundle_context_t *c_ctx, void **userData) {
-    auto *data = new celix::impl::ActivatorData;
-    data->fw = std::unique_ptr<celix::Framework>{new celix::impl::FrameworkImpl{c_ctx}};
-    data->ctx = std::unique_ptr<celix::BundleContext>{new celix::impl::BundleContextImpl{c_ctx, *data->fw}};
-    *userData = data;
-    return CELIX_SUCCESS;
-}
-
-extern "C" celix_status_t bundleActivator_start(void *userData, bundle_context_t *) {
-    auto *data = static_cast<celix::impl::ActivatorData*>(userData);
-    data->act = std::unique_ptr<celix::IBundleActivator>{celix::createBundleActivator(*data->ctx)};
-    data->ctx->getDependencyManager().start();
-    return CELIX_SUCCESS;
-}
-
-extern "C" celix_status_t bundleActivator_stop(void *userData, bundle_context_t *) {
-    auto *data = static_cast<celix::impl::ActivatorData*>(userData);
-    data->ctx->getDependencyManager().stop();
-    data->act = nullptr;
-    return CELIX_SUCCESS;
-}
-
-extern "C" celix_status_t bundleActivator_destroy(void *userData, bundle_context_t*) {
-    auto *data = static_cast<celix::impl::ActivatorData*>(userData);
-    data->ctx = nullptr;
-    data->fw = nullptr;
-    delete data;
-    return CELIX_SUCCESS;
-}
+/**
+ * This macro generated the required bundle activator symbols, which uses the celix::BundleActivatorAdapter to
+ * adapt the C bundle activator calls to the provided C++ bundle activator class.
+ */
+#define CELIX_GEN_CXX_BUNDLE_ACTIVATOR(clazz)                                                                          \
+extern "C" celix_status_t bundleActivator_create(bundle_context_t *c_ctx, void **userData) {                           \
+    auto *data = new celix::BundleActivatorAdapter<clazz>{c_ctx};                                                      \
+    *userData = data;                                                                                                  \
+    return CELIX_SUCCESS;                                                                                              \
+}                                                                                                                      \
+                                                                                                                       \
+extern "C" celix_status_t bundleActivator_start(void *userData, bundle_context_t *) {                                  \
+    auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
+    return data->start();                                                                                              \
+}                                                                                                                      \
+                                                                                                                       \
+extern "C" celix_status_t bundleActivator_stop(void *userData, bundle_context_t *) {                                   \
+    auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
+    return data->stop();                                                                                               \
+}                                                                                                                      \
+                                                                                                                       \
+extern "C" celix_status_t bundleActivator_destroy(void *userData, bundle_context_t*) {                                 \
+    auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
+    delete data;                                                                                                       \
+    return CELIX_SUCCESS;                                                                                              \
+}                                                                                                                      \
 
 #endif //CXX_CELIX_BUNDLEACTIVATOR_H

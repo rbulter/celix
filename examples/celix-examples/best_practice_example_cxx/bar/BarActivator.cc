@@ -22,11 +22,9 @@
 
 #include "celix/BundleActivator.h"
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BarActivator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(BarActivator)
 
-BarActivator::BarActivator(celix::BundleContext& ctx) {
+celix_status_t BarActivator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
     auto bar = std::unique_ptr<Bar>{new Bar{}};
 
@@ -46,4 +44,7 @@ BarActivator::BarActivator(celix::BundleContext& ctx) {
         .addInterface<IAnotherExample>(IAnotherExample::VERSION, props)
         .addCInterface(&this->cExample, EXAMPLE_NAME, EXAMPLE_VERSION, cProps)
         .setCallbacks(&Bar::init, &Bar::start, &Bar::stop, &Bar::deinit);
+    return CELIX_SUCCESS;
 }
+
+celix_status_t BarActivator::stop(celix::BundleContext&) {return CELIX_SUCCESS;}

@@ -18,25 +18,22 @@
  */
 
 #include <iostream>
-
 #include "celix/BundleActivator.h"
 
 namespace {
-    class BundleActivator : public celix::IBundleActivator {
+    class BundleActivator  {
     public:
-        BundleActivator(celix::BundleContext &) {
-            //std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
-            std::cout << "Hello world from C++ bundle " << std::endl;
+        celix_status_t start(celix::BundleContext &ctx) {
+            std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
+            return CELIX_SUCCESS;
         }
-        virtual ~BundleActivator() {
-            //std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
+
+        celix_status_t stop(celix::BundleContext &ctx) {
+            std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
+            return CELIX_SUCCESS;
         }
-    protected:
-        //celix::BundleContext &ctx;
     };
 }
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BundleActivator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(BundleActivator)
 

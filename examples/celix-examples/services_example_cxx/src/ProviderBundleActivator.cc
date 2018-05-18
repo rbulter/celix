@@ -33,9 +33,9 @@ namespace {
         }
     };
 
-    class BundleActivator : public celix::IBundleActivator {
+    class BundleActivator {
     public:
-        BundleActivator(celix::BundleContext &ctx) {
+        celix_status_t  start(celix::BundleContext &ctx) {
             /*
              * This thread registers calc service to a max of 100, then unregistered the services and repeats.
              */
@@ -66,21 +66,19 @@ namespace {
                 std::for_each(svcIds.begin(), svcIds.end(), [&ctx](long id){ctx.unregisterService(id);});
 
             }};
+            return  CELIX_SUCCESS;
         }
 
-        virtual ~BundleActivator() {
+        celix_status_t  stop(celix::BundleContext &) {
             this->running = false;
             th.join();
+            return CELIX_SUCCESS;
         }
 
     private:
         std::thread th{};
-
         std::atomic<bool> running{true};
     };
 }
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BundleActivator{ctx};
-}
-
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(BundleActivator)

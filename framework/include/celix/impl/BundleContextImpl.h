@@ -171,7 +171,8 @@ namespace celix {
             }
 
             long trackServiceInternal(const std::string &serviceName, std::function<void(void *svc)> set) noexcept override  {
-                celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+                celix_service_tracking_options_t opts; //TODO why not ok? = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+                std::memset(&opts, 0, sizeof(opts));
 
                 auto c_set = [](void *handle, void *svc) {
                     auto *entry = static_cast<TrackEntry*>(handle);
@@ -336,7 +337,9 @@ long celix::BundleContext::registerServiceWithOptions(const celix::ServiceRegist
         celix_properties_set(c_props, pair.first.c_str(), pair.second.c_str());
     }
 
-    celix_service_registration_options_t cOpts = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
+    celix_service_registration_options_t cOpts; //TODO compile error gcc = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
+    std::memset(&cOpts, 0, sizeof(cOpts));
+
     cOpts.svc = static_cast<void*>(&opts.svc);
     cOpts.serviceName = opts.serviceName.c_str();
     cOpts.serviceVersion = opts.serviceVersion.c_str();

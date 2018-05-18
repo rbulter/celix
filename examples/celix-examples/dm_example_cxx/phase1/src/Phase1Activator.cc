@@ -36,11 +36,9 @@ struct InvalidCServ {
     virtual void baz(double __attribute__((unused)) arg) {} //not a valid pod
 };
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new Phase1Activator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(Phase1Activator)
 
-Phase1Activator::Phase1Activator(celix::BundleContext& ctx) {
+celix_status_t Phase1Activator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
     auto cmp = std::unique_ptr<Phase1Cmp>(new Phase1Cmp());
 
@@ -67,8 +65,10 @@ Phase1Activator::Phase1Activator(celix::BundleContext& ctx) {
                     //.addCInterface(tst.get(), "TEST_SRV") -> Compile error (static assert), because InvalidCServ is not a pod
                     .addInterface<srv::info::IName>(INAME_VERSION)
                     .setCallbacks(&Phase1Cmp::init, &Phase1Cmp::start, &Phase1Cmp::stop, &Phase1Cmp::deinit);
+    return CELIX_SUCCESS;
 }
 
-Phase1Activator::~Phase1Activator() {
+celix_status_t Phase1Activator::stop(celix::BundleContext &) {
     //nothing to do
+    return CELIX_SUCCESS;
 }

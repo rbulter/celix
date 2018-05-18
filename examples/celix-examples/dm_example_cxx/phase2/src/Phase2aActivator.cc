@@ -25,11 +25,9 @@
 #include "celix/BundleActivator.h"
 
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new Phase2Activator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(Phase2Activator)
 
-Phase2Activator::Phase2Activator(celix::BundleContext& ctx) {
+celix_status_t Phase2Activator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
 
     Properties props {};
@@ -50,8 +48,10 @@ Phase2Activator::Phase2Activator(celix::BundleContext& ctx) {
     cmp.createCServiceDependency<log_service_t>(OSGI_LOGSERVICE_NAME)
             .setRequired(false)
             .setCallbacks(&Phase2Cmp::setLogService);
+    return CELIX_SUCCESS;
 }
 
-Phase2Activator::~Phase2Activator() {
+celix_status_t Phase2Activator::stop(celix::BundleContext &) {
     //nothing
+    return CELIX_SUCCESS;
 }

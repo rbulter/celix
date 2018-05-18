@@ -23,16 +23,18 @@
 
 #include "celix/BundleActivator.h"
 
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(Phase3Activator)
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new Phase3Activator{ctx};
-}
 
-Phase3Activator::Phase3Activator(celix::BundleContext& ctx) : Phase3BaseActivator{ctx.getDependencyManager()} {
-    cmp.createServiceDependency<IPhase2>()
+celix_status_t Phase3Activator::start(celix::BundleContext& ctx) {
+    this->Phase3BaseActivator::start(ctx);
+    this->cmp->createServiceDependency<IPhase2>()
              .setRequired(false)
              .setFilter("(&(name=phase2a)(non-existing=*))")
              .setCallbacks(&Phase3Cmp::setPhase2a);
+    return CELIX_SUCCESS;
 }
 
-Phase3Activator::~Phase3Activator(){}
+celix_status_t Phase3Activator::stop(celix::BundleContext &ctx) {
+    return this->Phase3BaseActivator::stop(ctx);
+}

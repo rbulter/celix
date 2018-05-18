@@ -25,13 +25,9 @@
 
 #include "celix/BundleActivator.h"
 
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(Phase3LockingActivator)
 
-
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new Phase3LockingActivator{ctx};
-}
-
-Phase3LockingActivator::Phase3LockingActivator(celix::BundleContext& ctx) {
+celix_status_t Phase3LockingActivator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
     auto inst = std::shared_ptr<Phase3LockingCmp> {new Phase3LockingCmp {}};
 
@@ -41,6 +37,9 @@ Phase3LockingActivator::Phase3LockingActivator(celix::BundleContext& ctx) {
     cmp.createServiceDependency<IPhase2>()
             .setStrategy(DependencyUpdateStrategy::locking)
             .setCallbacks(&Phase3LockingCmp::addPhase2, &Phase3LockingCmp::removePhase2);
+    return CELIX_SUCCESS;
 }
 
-Phase3LockingActivator::~Phase3LockingActivator() {}
+celix_status_t Phase3LockingActivator::stop(celix::BundleContext &) {
+    return CELIX_SUCCESS;
+}

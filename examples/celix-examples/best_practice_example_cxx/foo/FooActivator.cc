@@ -22,11 +22,9 @@
 
 #include "celix/BundleActivator.h"
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new FooActivator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(FooActivator)
 
-FooActivator::FooActivator(celix::BundleContext& ctx) {
+celix_status_t FooActivator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
     Component<Foo>& cmp = mng.createComponent<Foo>()
         .setCallbacks(nullptr, &Foo::start, &Foo::stop, nullptr);
@@ -40,4 +38,7 @@ FooActivator::FooActivator(celix::BundleContext& ctx) {
             .setRequired(false)
             .setVersionRange(EXAMPLE_CONSUMER_RANGE)
             .setCallbacks(&Foo::setExample);
+    return CELIX_SUCCESS;
 }
+
+celix_status_t FooActivator::stop(celix::BundleContext &) {return CELIX_SUCCESS;}

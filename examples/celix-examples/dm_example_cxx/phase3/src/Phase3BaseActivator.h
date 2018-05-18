@@ -20,15 +20,16 @@
 #ifndef CELIX_PHASE3BASEACTIVATOR_H
 #define CELIX_PHASE3BASEACTIVATOR_H
 
-#include "celix/IBundleActivator.h"
+#include "celix/BundleContext.h"
 #include "celix/dm/DependencyManager.h"
 
-class Phase3BaseActivator : public celix::IBundleActivator {
+class Phase3BaseActivator  {
 public:
-    Phase3BaseActivator(celix::dm::DependencyManager& mng);
-    virtual ~Phase3BaseActivator();
+    virtual ~Phase3BaseActivator(){}
+    virtual celix_status_t start(celix::BundleContext& ctx);
+    virtual celix_status_t stop(celix::BundleContext& ctx);
 protected:
-    celix::dm::Component<Phase3Cmp>& cmp;
+    celix::dm::Component<Phase3Cmp> *cmp{nullptr};
 };
 
 #endif //CELIX_PHASE3BASEACTIVATOR_H

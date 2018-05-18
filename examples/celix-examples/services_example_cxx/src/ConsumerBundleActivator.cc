@@ -26,22 +26,26 @@
 #include "ICalc.h"
 
 namespace {
-    class BundleActivator : public celix::IBundleActivator {
+    class BundleActivator {
     public:
-        BundleActivator(celix::BundleContext &_ctx) : ctx{_ctx} {
+        celix_status_t  start(celix::BundleContext &ctx) {
             this->trackerId = ctx.trackServices<example::ICalc>(example::ICalc::NAME,
                  [this](example::ICalc *) {  this->trackCount += 1; },
                  [this](example::ICalc *) {  this->trackCount -= 1; });
+
+            this->useThread = std::thread{[&ctx, this] { this->use(ctx); }};
+            return CELIX_SUCCESS;
         }
 
-        virtual ~BundleActivator() {
+        celix_status_t  stop(celix::BundleContext &ctx) {
             ctx.stopTracker(this->trackerId);
             this->running = false;
             this->useThread.join();
+            return CELIX_SUCCESS;
         }
 
     protected:
-        void use() {
+        void use(celix::BundleContext &ctx) {
                 while(running) {
                         int count = 0;
                         double total = 0;
@@ -65,17 +69,13 @@ namespace {
         }
 
     private:
-        celix::BundleContext &ctx;
-
         long trackerId{-1};
-        std::thread useThread{[this] { this->use(); }};
+        std::thread useThread{};
 
         std::atomic<bool> running{true};
         std::atomic<int> trackCount{0};
     };
 }
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BundleActivator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(BundleActivator)
 

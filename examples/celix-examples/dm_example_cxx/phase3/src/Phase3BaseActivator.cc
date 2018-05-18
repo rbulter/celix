@@ -20,12 +20,18 @@
 #include "Phase3Cmp.h"
 #include "Phase3BaseActivator.h"
 
-Phase3BaseActivator::Phase3BaseActivator(celix::dm::DependencyManager& mng) : cmp(mng.createComponent<Phase3Cmp>()) {
+celix_status_t Phase3BaseActivator::start(celix::BundleContext& ctx) {
+    auto& cmp = ctx.getDependencyManager().createComponent<Phase3Cmp>();
     cmp.setCallbacks(nullptr, &Phase3Cmp::start, &Phase3Cmp::stop, nullptr);
 
     cmp.createServiceDependency<IPhase2>()
             .setRequired(true)
             .setCallbacks(&Phase3Cmp::addPhase2, &Phase3Cmp::removePhase2);
+    this->cmp = &cmp;
+    return CELIX_SUCCESS;
 }
 
-Phase3BaseActivator::~Phase3BaseActivator(){};
+celix_status_t Phase3BaseActivator::stop(celix::BundleContext &){
+    this->cmp = nullptr;
+    return CELIX_SUCCESS;
+};

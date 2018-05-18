@@ -22,11 +22,9 @@
 
 #include "celix/BundleActivator.h"
 
-celix::IBundleActivator* celix::createBundleActivator(celix::BundleContext &ctx) {
-    return new BazActivator{ctx};
-}
+CELIX_GEN_CXX_BUNDLE_ACTIVATOR(BazActivator)
 
-BazActivator::BazActivator(celix::BundleContext& ctx) {
+celix_status_t BazActivator::start(celix::BundleContext& ctx) {
     auto &mng = ctx.getDependencyManager();
     Component<Baz>& cmp = mng.createComponent<Baz>()
         .setCallbacks(nullptr, &Baz::start, &Baz::stop, nullptr);
@@ -42,4 +40,7 @@ BazActivator::BazActivator(celix::BundleContext& ctx) {
             .setStrategy(DependencyUpdateStrategy::locking)
             .setVersionRange(EXAMPLE_CONSUMER_RANGE)
             .setCallbacks(&Baz::addExample, &Baz::removeExample);
+    return CELIX_SUCCESS;
 }
+
+celix_status_t BazActivator::stop(celix::BundleContext &){return CELIX_SUCCESS;}
