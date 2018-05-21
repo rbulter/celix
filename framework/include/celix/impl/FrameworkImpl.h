@@ -32,12 +32,12 @@ namespace celix {
 
         class FrameworkImpl : public celix::Framework {
         public:
-            FrameworkImpl(celix_bundle_context_t *c_ctx) : owner{false} {
+            FrameworkImpl(celix_bundle_context_t *c_ctx) : owner(false) {
                 bundleContext_getFramework(c_ctx, &this->c_fwm);
                 this->setFrameworkContext();
             }
 
-            FrameworkImpl(framework_t *c_fw) : owner{false} {
+            FrameworkImpl(framework_t *c_fw) : owner(false) {
                 //wrapper framework
                 this->c_fwm = c_fw;
                 //assume started framework
@@ -49,7 +49,7 @@ namespace celix {
             FrameworkImpl(FrameworkImpl&&) = delete;
             FrameworkImpl& operator=(FrameworkImpl&&) = delete;
 
-            FrameworkImpl(celix::Properties config) : owner{true} {
+            FrameworkImpl(celix::Properties config) : owner(true) {
                 //framework which also owns the underlining c framework
                 auto c_config = properties_create();
                 for (auto &pair : config) {

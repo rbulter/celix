@@ -24,10 +24,13 @@
 
 namespace celix {
 
-    typename<I>
+    template<typename I>
     class IServiceFactory {
-        virtual I* getService(IBundle &bundle) = 0;
-        virtual void ungetService(IBundle* bundle, I* svc) = 0;
+    public:
+        virtual ~IServiceFactory() = default;
+
+        virtual I* getService(const celix::Bundle &bundle, const celix::Properties &properties) = 0;
+        virtual void ungetService(const celix::Bundle& bundle, const celix::Properties &properties) = 0;
     };
 
 }

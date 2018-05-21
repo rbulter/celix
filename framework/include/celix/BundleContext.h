@@ -17,9 +17,6 @@
  *under the License.
  */
 
-#ifndef CXX_CELIX_BUNDLECONTEXT_H
-#define CXX_CELIX_BUNDLECONTEXT_H
-
 #include <string>
 #include <vector>
 #include <functional>
@@ -27,6 +24,10 @@
 #include "celix/Constants.h"
 #include "celix/Properties.h"
 #include "celix/Bundle.h"
+#include "celix/IServiceFactory.h"
+
+#ifndef CXX_CELIX_BUNDLECONTEXT_H
+#define CXX_CELIX_BUNDLECONTEXT_H
 
 namespace celix {
 
@@ -41,9 +42,12 @@ namespace celix {
     struct ServiceRegistrationOptions {
         using type = I;
 
-        ServiceRegistrationOptions(I& _svc, const std::string& _serviceName) : svc{_svc}, serviceName{_serviceName} {};
+        ServiceRegistrationOptions(I& _svc, const std::string& _serviceName) : svc{&_svc}, serviceName{_serviceName} {};
+        ServiceRegistrationOptions(celix::IServiceFactory<I>& _factory, const std::string& _serviceName) : factory{&_factory}, serviceName{_serviceName} {};
 
-        I& svc;
+        I *svc{nullptr};
+        celix::IServiceFactory<I> *factory{nullptr};
+
         const std::string serviceName;
 
         celix::Properties properties{};
@@ -61,7 +65,7 @@ namespace celix {
 
         std::string versionRange{};
         std::string filter{};
-        std::string lang{celix::Constants::SERVICE_CXX_LANG};
+        std::string serviceLanguage{celix::Constants::SERVICE_CXX_LANG};
     };
 
 
@@ -123,15 +127,25 @@ namespace celix {
         std::string resourceLenSymbol{};
     };
 
+    //opaque types to forward impl details to impl header
+    struct ServiceRegistrationEntry;
+    struct ServiceTrackingEntry;
+
     class BundleContext {
     public:
         virtual ~BundleContext(){};
 
         template<typename I>
-        long registerService(I *svc, const std::string &serviceName, Properties props = {}) noexcept;
+        long registerService(I *svc, const std::string &serviceName, celix::Properties props = {}) noexcept;
 
         template<typename I>
-        long registerCService(I *svc, const std::string &serviceName, Properties props = {}) noexcept;
+        long registerCService(I *svc, const std::string &serviceName, celix::Properties props = {}) noexcept;
+
+        template<typename I>
+        long registerServiceFactory(celix::IServiceFactory<I> *svc, const std::string &serviceName, celix::Properties props = {});
+
+        template<typename I>
+        long registerCServiceFactory(celix::IServiceFactory<I> *svc, const std::string &serviceName, celix::Properties props = {});
 
         template<typename I>
         long registerServiceWithOptions(const celix::ServiceRegistrationOptions<I>& opts) noexcept;
@@ -140,7 +154,6 @@ namespace celix {
 
         virtual void unregisterService(long serviceId) noexcept = 0;
 
-        //register service factory
 
         /**
         * track service for the provided service type, service name, optional version range and optional filter.
@@ -148,7 +161,6 @@ namespace celix {
         * If a new and higher ranking services the callback with be called again with the new service.
         * If a service is removed a the callback with be called with next highest ranking service or NULL as service.
         *
-        * @param ctx The bundle context.
         * @param serviceName The required service name to track
         * @param set is a required callback, which will be called when a new highest ranking service is set.
         * @return the tracker id or < 0 if unsuccessful.
@@ -159,7 +171,6 @@ namespace celix {
         /**
          * track services for the provided serviceName and/or filter.
          *
-         * @param ctx The bundle context.
          * @param serviceName The required service name to track
          * @param add is a required callback, which will be called when a service is added and initially for the existing service.
          * @param remove is a required callback, which will be called when a service is removed
@@ -168,8 +179,17 @@ namespace celix {
         template<typename I>
         long trackServices(const std::string &serviceName, std::function<void(I *svc)> add, std::function<void(I *svc)> remove) noexcept;
 
-        //TODO trackService(s)WithOptions
         //TODO add trackCService(s) variants
+
+        /**
+         * track services using the provided tracking options
+         *
+         * @param opts The tracking options
+         * @return the tracker id or < 0 if unsuccessful.
+         */
+        template<typename I>
+        long trackServicesWithOptions(const celix::ServiceTrackingOptions<I>& opts) noexcept;
+
 
         /**
          * Note use function by const reference. Only used during the call.
@@ -254,10 +274,9 @@ namespace celix {
 
         virtual bool useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept = 0;
     protected:
-        virtual long registerServiceInternal(const celix_service_registration_options_t &opts) noexcept  = 0;
+        virtual long registerServiceInternal(celix::ServiceRegistrationEntry &&entry) noexcept  = 0;
 
-        virtual long trackServiceInternal(const std::string &serviceName, std::function<void(void *svc)> set) noexcept = 0;
-        virtual long trackServicesInternal(const std::string &serviceName, std::function<void(void *svc)> add, std::function<void(void *svc)> remove) noexcept = 0;
+        virtual long trackServicesInternal(celix::ServiceTrackingEntry &&entry) noexcept  = 0;
 
         virtual bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
         virtual void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;

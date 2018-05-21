@@ -30,11 +30,11 @@ namespace celix {
     namespace impl {
         class BundleImpl : public celix::Bundle {
         public:
-            BundleImpl(celix_bundle_context_t *c_ctx) : c_bnd{nullptr} {
+            BundleImpl(celix_bundle_context_t *c_ctx) : c_bnd(nullptr) {
                 bundleContext_getBundle(c_ctx, &this->c_bnd);
             }
 
-            BundleImpl(celix_bundle_t *b) : c_bnd{b} {
+            BundleImpl(celix_bundle_t *b) : c_bnd(b) {
             }
 
             virtual ~BundleImpl() {
