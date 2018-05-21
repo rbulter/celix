@@ -60,13 +60,19 @@ namespace {
 namespace celix {
 
     struct ServiceRegistrationEntry {
-        long svcId{-1};
-        celix_service_factory_t factory{};
-        celix_service_registration_options_t cOpts{};
+        ServiceRegistrationEntry() {
+            std::memset(&this->cOpts, 0, sizeof(this->cOpts));
+            std::memset(&this->factory, 0, sizeof(this->factory));
+        }
+        celix_service_factory_t factory;
+        celix_service_registration_options_t cOpts;
     };
 
     struct ServiceTrackingEntry {
-        celix_service_tracking_options_t cOpts{};
+        ServiceTrackingEntry() {
+            std::memset(&this->cOpts, 0, sizeof(this->cOpts));
+        }
+        celix_service_tracking_options_t cOpts;
         std::unique_ptr<ServiceTrackingEntryFunctions> functions{nullptr};
     };
 
@@ -106,7 +112,12 @@ namespace celix {
             BundleContextImpl& operator=(BundleContextImpl&&) = delete;
 
             void unregisterService(long serviceId) noexcept override {
+                std::lock_guard<std::mutex> lock{this->mutex};
                 celix_bundleContext_unregisterService(this->c_ctx, serviceId);
+                auto it = this->registrationEntries.find(serviceId);
+                if (it != this->registrationEntries.end()) {
+                    this->registrationEntries.erase(it);
+                }
             }
 
             std::vector<long> findServices(const std::string &/*serviceName*/, const std::string &/*versionRange*/, const std::string &/*filter*/, const std::string &/*lang = ""*/) noexcept override  {
@@ -377,10 +388,11 @@ long celix::BundleContext::trackServicesWithOptions(const celix::ServiceTracking
 
     auto set = opts.set;
     if (set) {
-        auto voidSet = [set](void *voidSvc) {
+        auto voidfunc = [set](void *voidSvc) {
             I *typedSvc = static_cast<I*>(voidSvc);
             set(typedSvc);
         };
+        entry.functions->set = voidfunc;
         entry.cOpts.set = [](void *handle, void *svc) {
             auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
             (fentry->set)(svc);
@@ -389,10 +401,11 @@ long celix::BundleContext::trackServicesWithOptions(const celix::ServiceTracking
 
     auto setWithProperties = opts.setWithProperties;
     if (setWithProperties) {
-        auto voidSet = [setWithProperties](void *voidSvc, const celix::Properties &props) {
+        auto voidfunc = [setWithProperties](void *voidSvc, const celix::Properties &props) {
             I *typedSvc = static_cast<I*>(voidSvc);
             setWithProperties(typedSvc, props);
         };
+        entry.functions->setWithProperties = voidfunc;
         entry.cOpts.setWithProperties = [](void *handle, void *svc, const celix_properties_t *c_props) {
             auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
             celix::Properties props = createFromCProps(c_props);
@@ -402,10 +415,11 @@ long celix::BundleContext::trackServicesWithOptions(const celix::ServiceTracking
 
     auto setWithOwner = opts.setWithOwner;
     if (setWithOwner) {
-        auto voidSet = [setWithOwner](void *voidSvc, const celix::Properties &props, const celix::Bundle &bnd) {
+        auto voidfunc = [setWithOwner](void *voidSvc, const celix::Properties &props, const celix::Bundle &bnd) {
             I *typedSvc = static_cast<I*>(voidSvc);
             setWithOwner(typedSvc, props, bnd);
         };
+        entry.functions->setWithOwner = voidfunc;
         entry.cOpts.setWithOwner = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
             auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
             celix::Properties props = createFromCProps(c_props);
@@ -415,10 +429,91 @@ long celix::BundleContext::trackServicesWithOptions(const celix::ServiceTracking
         };
     }
 
+    auto add = opts.add;
+    if (add) {
+        auto voidfunc = [add](void *voidSvc) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            add(typedSvc);
+        };
+        entry.functions->add = voidfunc;
+        entry.cOpts.add = [](void *handle, void *svc) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            (fentry->add)(svc);
+        };
+    }
 
-    //TODO add
-    //TODO remove
+    auto addWithProperties = opts.addWithProperties;
+    if (addWithProperties) {
+        auto voidfunc = [addWithProperties](void *voidSvc, const celix::Properties &props) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            addWithProperties(typedSvc, props);
+        };
+        entry.functions->addWithProperties = voidfunc;
+        entry.cOpts.addWithProperties = [](void *handle, void *svc, const celix_properties_t *c_props) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            celix::Properties props = createFromCProps(c_props);
+            (fentry->addWithProperties)(svc, props);
+        };
+    }
 
+    auto addWithOwner = opts.setWithOwner;
+    if (addWithOwner) {
+        auto voidfunc = [addWithOwner](void *voidSvc, const celix::Properties &props, const celix::Bundle &bnd) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            addWithOwner(typedSvc, props, bnd);
+        };
+        entry.functions->addWithOwner = voidfunc;
+        entry.cOpts.addWithOwner = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            celix::Properties props = createFromCProps(c_props);
+            auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
+            celix::impl::BundleImpl bnd{m_bnd};
+            (fentry->addWithOwner)(svc, props, bnd);
+        };
+    }
+
+    auto remove = opts.remove;
+    if (remove) {
+        auto voidfunc = [remove](void *voidSvc) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            remove(typedSvc);
+        };
+        entry.functions->remove = voidfunc;
+        entry.cOpts.remove = [](void *handle, void *svc) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            (fentry->add)(svc);
+        };
+    }
+
+    auto removeWithProperties = opts.removeWithProperties;
+    if (removeWithProperties) {
+        auto voidfunc = [removeWithProperties](void *voidSvc, const celix::Properties &props) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            removeWithProperties(typedSvc, props);
+        };
+        entry.functions->removeWithProperties = voidfunc;
+        entry.cOpts.removeWithProperties = [](void *handle, void *svc, const celix_properties_t *c_props) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            celix::Properties props = createFromCProps(c_props);
+            (fentry->removeWithProperties)(svc, props);
+        };
+    }
+
+    auto removeWithOwner = opts.removeWithOwner;
+    if (removeWithOwner) {
+        auto voidfunc = [removeWithOwner](void *voidSvc, const celix::Properties &props, const celix::Bundle &bnd) {
+            I *typedSvc = static_cast<I*>(voidSvc);
+            removeWithOwner(typedSvc, props, bnd);
+        };
+        entry.functions->removeWithOwner = voidfunc;
+        entry.cOpts.removeWithOwner = [](void *handle, void *svc, const celix_properties_t *c_props, const celix_bundle_t *c_bnd) {
+            auto *fentry = static_cast<ServiceTrackingEntryFunctions*>(handle);
+            celix::Properties props = createFromCProps(c_props);
+            auto m_bnd = const_cast<celix_bundle_t *>(c_bnd);
+            celix::impl::BundleImpl bnd{m_bnd};
+            (fentry->removeWithOwner)(svc, props, bnd);
+        };
+    }
 
     entry.cOpts.filter.serviceName = opts.filter.serviceName.c_str();
     entry.cOpts.filter.serviceLanguage = opts.filter.serviceLanguage.c_str();
