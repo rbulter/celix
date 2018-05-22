@@ -19,7 +19,6 @@
 
 #include <iostream>
 #include "celix/BundleActivator.h"
-
 namespace {
     class BundleActivator  {
     public:

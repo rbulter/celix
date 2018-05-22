@@ -117,7 +117,7 @@ namespace celix {
 
             bool owner;
             framework_t *c_fwm{nullptr};
-            std::map<long,celix::impl::BundleContextImpl> bundleContextsCache{};
+            std::map<long,celix::BundleContext> bundleContextsCache{};
             std::vector<celix::impl::BundleImpl> fwBundle{}; //optional entry
 
         };

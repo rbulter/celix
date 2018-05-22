@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 #include "celix/Constants.h"
 #include "celix/Properties.h"
@@ -44,6 +45,11 @@ namespace celix {
 
         ServiceRegistrationOptions(I& _svc, const std::string& _serviceName) : svc{&_svc}, serviceName{_serviceName} {};
         ServiceRegistrationOptions(celix::IServiceFactory<I>& _factory, const std::string& _serviceName) : factory{&_factory}, serviceName{_serviceName} {};
+
+        ServiceRegistrationOptions(const ServiceRegistrationOptions&) = delete;
+        ServiceRegistrationOptions& operator=(const ServiceRegistrationOptions&) = delete;
+        ServiceRegistrationOptions(ServiceRegistrationOptions&&) = delete;
+        ServiceRegistrationOptions& operator=(ServiceRegistrationOptions&) = delete;
 
         I *svc{nullptr};
         celix::IServiceFactory<I> *factory{nullptr};
@@ -127,13 +133,10 @@ namespace celix {
         std::string resourceLenSymbol{};
     };
 
-    //opaque types to forward impl details to impl header
-    struct ServiceRegistrationEntry;
-    struct ServiceTrackingEntry;
-
     class BundleContext {
     public:
-        virtual ~BundleContext(){};
+        BundleContext(celix_bundle_context_t *ctx, celix::Framework& fw); //TODO hide somehow ... friend ?
+        virtual ~BundleContext();
 
         template<typename I>
         long registerService(I *svc, const std::string &serviceName, celix::Properties props = {}) noexcept;
@@ -152,7 +155,7 @@ namespace celix {
 
         //TODO register std::function ?
 
-        virtual void unregisterService(long serviceId) noexcept = 0;
+        void unregisterService(long serviceId) noexcept;
 
 
         /**
@@ -226,10 +229,10 @@ namespace celix {
         /**
          * Note ordered by service rank.
          */
-        virtual std::vector<long> findServices(const std::string &serviceName, const std::string &versionRange = "", const std::string &filter = "", const std::string &lang = "") noexcept = 0;
+        std::vector<long> findServices(const std::string &serviceName, const std::string &versionRange = "", const std::string &filter = "", const std::string &lang = "") noexcept;
 
         //TODO also support getting int, long, unsigned int, etc??
-        virtual std::string getProperty(const std::string &key, std::string defaultValue = "") noexcept  = 0;
+        std::string getProperty(const std::string &key, std::string defaultValue = "") noexcept;
 
         //TODO options
 
@@ -246,40 +249,39 @@ namespace celix {
          *
          * Will log a error if the provided tracker id is unknown. Will silently ignore trackerId < 0.
          */
-        virtual void stopTracker(long trackerId) noexcept  = 0;
+        void stopTracker(long trackerId) noexcept;
 
-        virtual celix::Framework& getFramework() noexcept = 0;
+        celix::Framework& getFramework() noexcept;
 
-        virtual celix::Bundle& getBundle() noexcept = 0;
+        celix::Bundle& getBundle() noexcept;
 
-        virtual celix::dm::DependencyManager& getDependencyManager() noexcept  = 0;
+        celix::dm::DependencyManager& getDependencyManager() noexcept;
 
-        //TODO
-        //class celix::DependencyManager; //forward declaration TODO create
-        //virtual celix::DependencyManager& getDependencyManager() const noexcept = 0;
-
-        virtual long registerEmbeddedBundle(
+        /** TODO
+        long registerEmbeddedBundle(
                 std::string id,
                 std::function<void(celix::BundleContext& ctx)> start,
                 std::function<void(celix::BundleContext& ctx)> stop,
                 celix::Properties manifest = {},
                 bool autoStart = true
-        ) noexcept = 0;
+        ) noexcept;
 
-        virtual void registerEmbeddedBundle(const celix::BundleRegistrationOptions &opts) noexcept = 0;
+         void registerEmbeddedBundle(const celix::BundleRegistrationOptions &opts) noexcept = 0;
+        */
 
-        virtual long installBundle(const std::string &bundleLocation, bool autoStart = true) noexcept = 0;
 
-        virtual void useBundles(const std::function<void(const celix::Bundle &bnd)> &use) noexcept = 0;
 
-        virtual bool useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept = 0;
+        long installBundle(const std::string &bundleLocation, bool autoStart = true) noexcept;
+
+        void useBundles(const std::function<void(const celix::Bundle &bnd)> &use) noexcept;
+
+        bool useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept;
     protected:
-        virtual long registerServiceInternal(celix::ServiceRegistrationEntry &&entry) noexcept  = 0;
-
-        virtual long trackServicesInternal(celix::ServiceTrackingEntry &&entry) noexcept  = 0;
-
-        virtual bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
-        virtual void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept = 0;
+        bool useServiceInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept;
+        void useServicesInternal(const std::string &serviceName, const std::function<void(void *svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept;
+    private:
+        struct Impl;
+        std::unique_ptr<celix::BundleContext::Impl> pimpl{nullptr};
     };
 
 }

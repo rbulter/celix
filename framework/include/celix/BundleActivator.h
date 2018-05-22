@@ -46,7 +46,7 @@ namespace celix {
     public:
         BundleActivatorAdapter(bundle_context_t *c_ctx) {
             this->fw = std::unique_ptr<celix::Framework>{new celix::impl::FrameworkImpl{c_ctx}}; \
-            this->ctx = std::unique_ptr<celix::BundleContext>{new celix::impl::BundleContextImpl{c_ctx, *this->fw}}; \
+            this->ctx = std::unique_ptr<celix::BundleContext>{new celix::BundleContext{c_ctx, *this->fw}}; \
             this->activator = nullptr;
         }
 

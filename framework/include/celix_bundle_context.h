@@ -127,6 +127,7 @@ typedef struct celix_service_registration_options {
  * Macro to create a empty celix_service_registration_options_t type.
  */
 #define CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS { .svc = NULL, \
+    .factory = NULL, \
     .serviceName = NULL, \
     .properties = NULL, \
     .serviceLanguage = NULL, \
