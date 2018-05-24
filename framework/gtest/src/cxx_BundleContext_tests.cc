@@ -77,7 +77,7 @@ TEST_F(BundleContextTest, RegisterCServiceTest) {
 
     auto &ctx = this->framework().getFrameworkContext();
 
-    test_svc svc1{};
+    test_svc svc1;
 
     long svcId = ctx.registerCService(&svc1, "test service");
     EXPECT_TRUE(svcId > 0);
@@ -96,7 +96,7 @@ TEST_F(BundleContextTest, RegisterCServiceTest) {
 TEST_F(BundleContextTest, RegisterServiceTest) {
     auto &ctx = this->framework().getFrameworkContext();
 
-    TestImpl svc1{};
+    TestImpl svc1;
 
     long svcId = ctx.registerService<ITestSvc>(&svc1, ITestSvc::NAME);
     EXPECT_TRUE(svcId > 0);
@@ -111,7 +111,7 @@ TEST_F(BundleContextTest, RegisterServiceTest) {
 TEST_F(BundleContextTest, UseService) {
     auto &ctx = this->framework().getFrameworkContext();
 
-    TestImpl svc1{};
+    TestImpl svc1;
 
     long svcId = ctx.registerService<ITestSvc>(&svc1, ITestSvc::NAME);
     EXPECT_TRUE(svcId > 0);
@@ -138,7 +138,7 @@ TEST_F(BundleContextTest, UseService) {
 TEST_F(BundleContextTest, UseServices) {
     auto &ctx = this->framework().getFrameworkContext();
 
-    TestImpl svc{};
+    TestImpl svc;
 
     long svcId1 = ctx.registerService<ITestSvc>(&svc, "test service");
     EXPECT_TRUE(svcId1 > 0);
