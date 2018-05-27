@@ -20,13 +20,14 @@
 #ifndef BAR_ACTIVATOR_H
 #define BAR_ACTIVATOR_H
 
-#include "celix/BundleContext.h"
+#include "celix/IBundleActivator.h"
 #include "example.h"
 
-class BarActivator {
+class BarActivator : public celix::IBundleActivator {
 public:
-    celix_status_t start(celix::BundleContext &ctx);
-    celix_status_t stop(celix::BundleContext &ctx);
+    virtual ~BarActivator(){}
+    celix_status_t start(celix::BundleContext &ctx) override;
+    celix_status_t stop(celix::BundleContext &ctx) override;
 private:
     example_t cExample {nullptr, nullptr};
 };

@@ -33,9 +33,9 @@ namespace {
         }
     };
 
-    class BundleActivator {
+    class BundleActivator : public celix::IBundleActivator {
     public:
-        celix_status_t  start(celix::BundleContext &ctx) {
+        celix_status_t start(celix::BundleContext &ctx)  override {
             /*
              * This thread registers calc service to a max of 100, then unregistered the services and repeats.
              */
@@ -69,7 +69,7 @@ namespace {
             return  CELIX_SUCCESS;
         }
 
-        celix_status_t  stop(celix::BundleContext &) {
+        celix_status_t  stop(celix::BundleContext &) override {
             this->running = false;
             th.join();
             return CELIX_SUCCESS;

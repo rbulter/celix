@@ -20,12 +20,14 @@
 #ifndef BAZ_ACTIVATOR_H
 #define BAZ_ACTIVATOR_H
 
+#include "celix/IBundleActivator.h"
 #include "celix/BundleContext.h"
 
-class BazActivator {
+class BazActivator : public celix::IBundleActivator {
 public:
-    celix_status_t start(celix::BundleContext &ctx);
-    celix_status_t stop(celix::BundleContext &ctx);
+    virtual ~BazActivator(){}
+    celix_status_t start(celix::BundleContext &ctx) override;
+    celix_status_t stop(celix::BundleContext &ctx) override;
 };
 
 #endif //BAZ_ACTIVATOR_H

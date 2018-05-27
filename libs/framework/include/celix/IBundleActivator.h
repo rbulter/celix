@@ -17,24 +17,21 @@
  *under the License.
  */
 
-#ifndef CXX_CELIX_ISERVICEFACTORY_H
-#define CXX_CELIX_ISERVICEFACTORY_H
+#include "celix/BundleContext.h"
 
-#include "celix/Bundle.h"
+#ifndef CXX_CELIX_IBUNDLEACTIVATOR_H
+#define CXX_CELIX_IBUNDLEACTIVATOR_H
 
 namespace celix {
 
-    template<typename I>
-    class IServiceFactory {
+    class IBundleActivator {
+
     public:
-        using type = I;
+        virtual ~IBundleActivator(){}
 
-        virtual ~IServiceFactory() = default;
-
-        virtual I* getService(const celix::Bundle &bundle, const celix::Properties &properties) = 0;
-        virtual void ungetService(const celix::Bundle& bundle, const celix::Properties &properties) = 0;
+        virtual celix_status_t start(celix::BundleContext &ctx) = 0;
+        virtual celix_status_t stop(celix::BundleContext &ctx) = 0;
     };
-
 }
 
-#endif //CXX_CELIX_ISERVICEFACTORY_H
+#endif //CXX_CELIX_IBUNDLEACTIVATOR_H

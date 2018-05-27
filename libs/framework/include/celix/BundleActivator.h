@@ -19,10 +19,7 @@
 
 #include <memory>
 
-#include "celix/BundleContext.h"
-#include "celix/Framework.h"
-
-#include "celix/BundleContext.h"
+#include "celix/IBundleActivator.h"
 #include "celix/Framework.h"
 
 #ifndef CXX_CELIX_BUNDLEACTIVATOR_H
@@ -33,16 +30,17 @@ namespace celix {
      * The BundleActivatorAdapter adapts the C bundle activator calls to a C++ bundle activator.
      * The Type parameter (T) is the C++ bundle activator and needs to support:
      * - A public default constructor.
-     * - A public destructor.
-     * - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
-     * - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
+     * - Implementing the celix::IBundleActivator interface, which contains:
+     *      - A public destructor.
+     *      - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
+     *      - A public 'celix_status_t start(celix::BundleContext &ctx)` method.
      */
     template<typename T>
     class BundleActivatorAdapter {
     private:
         std::unique_ptr<celix::Framework> fw{};
         std::unique_ptr<celix::BundleContext> ctx{};
-        std::unique_ptr<T> activator{};
+        std::unique_ptr<celix::IBundleActivator> activator{};
     public:
         BundleActivatorAdapter(bundle_context_t *c_ctx) {
             this->fw = std::unique_ptr<celix::Framework>{new celix::impl::FrameworkImpl{c_ctx}}; \
@@ -57,7 +55,7 @@ namespace celix {
         }
 
         celix_status_t start() noexcept  {
-            this->activator = std::unique_ptr<T>{new T};
+            this->activator = std::unique_ptr<celix::IBundleActivator>{new T};
             celix_status_t status = this->activator->start(*this->ctx);
             if (status == CELIX_SUCCESS) {
                 this->ctx->getDependencyManager().start();

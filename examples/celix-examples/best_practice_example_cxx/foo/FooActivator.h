@@ -17,16 +17,17 @@
  * under the License.
  */
 
-#include "celix/BundleContext.h"
+#include "celix/IBundleActivator.h"
 
 #ifndef FOO_ACTIVATOR_H
 #define FOO_ACTIVATOR_H
 
-class FooActivator {
+class FooActivator : public celix::IBundleActivator {
 private:
 public:
-    celix_status_t start(celix::BundleContext &ctx);
-    celix_status_t stop(celix::BundleContext &ctx);
+    virtual ~FooActivator(){}
+    celix_status_t start(celix::BundleContext &ctx) override ;
+    celix_status_t stop(celix::BundleContext &ctx) override ;
 };
 
 #endif //FOO_ACTIVATOR_H

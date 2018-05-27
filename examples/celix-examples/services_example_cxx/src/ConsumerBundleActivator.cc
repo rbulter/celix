@@ -26,9 +26,10 @@
 #include "ICalc.h"
 
 namespace {
-    class BundleActivator {
+    class BundleActivator : public celix::IBundleActivator {
     public:
-        celix_status_t  start(celix::BundleContext &ctx) {
+        virtual ~BundleActivator(){}
+        celix_status_t  start(celix::BundleContext &ctx) override {
             this->trackerId = ctx.trackServices<example::ICalc>(example::ICalc::NAME,
                  [this](example::ICalc *) {  this->trackCount += 1; },
                  [this](example::ICalc *) {  this->trackCount -= 1; });
@@ -37,7 +38,7 @@ namespace {
             return CELIX_SUCCESS;
         }
 
-        celix_status_t  stop(celix::BundleContext &ctx) {
+        celix_status_t  stop(celix::BundleContext &ctx) override {
             ctx.stopTracker(this->trackerId);
             this->running = false;
             this->useThread.join();

@@ -24,8 +24,8 @@
 
 class Phase3Activator : public Phase3BaseActivator {
 public:
-    virtual celix_status_t start(celix::BundleContext& ctx);
-    virtual celix_status_t stop(celix::BundleContext& ctx);
+    celix_status_t start(celix::BundleContext& ctx) override;
+    celix_status_t stop(celix::BundleContext& ctx) override;
 };
 
 #endif //CELIX_PHASE2AACTIVATOR_H

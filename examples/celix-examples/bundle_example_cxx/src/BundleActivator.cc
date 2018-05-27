@@ -20,14 +20,16 @@
 #include <iostream>
 #include "celix/BundleActivator.h"
 namespace {
-    class BundleActivator  {
+    class BundleActivator : public celix::IBundleActivator {
     public:
-        celix_status_t start(celix::BundleContext &ctx) {
+        virtual ~BundleActivator(){}
+
+        celix_status_t start(celix::BundleContext &ctx) override {
             std::cout << "Hello world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
             return CELIX_SUCCESS;
         }
 
-        celix_status_t stop(celix::BundleContext &ctx) {
+        celix_status_t stop(celix::BundleContext &ctx) override {
             std::cout << "Goodbye world from C++ bundle with id " << ctx.getBundle().getBundleId() << std::endl;
             return CELIX_SUCCESS;
         }

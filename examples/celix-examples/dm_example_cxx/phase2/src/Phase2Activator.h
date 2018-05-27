@@ -20,14 +20,13 @@
 #ifndef CELIX_PHASE2AACTIVATOR_H
 #define CELIX_PHASE2AACTIVATOR_H
 
-#include "celix/BundleContext.h"
+#include "celix/IBundleActivator.h"
 
-using namespace celix::dm;
-
-class Phase2Activator  {
+class Phase2Activator : public celix::IBundleActivator {
 public:
-    celix_status_t start(celix::BundleContext &ctx);
-    celix_status_t stop(celix::BundleContext &ctx);
+    virtual ~Phase2Activator(){}
+    celix_status_t start(celix::BundleContext &ctx) override;
+    celix_status_t stop(celix::BundleContext &ctx) override;
 };
 
 #endif //CELIX_PHASE2AACTIVATOR_H

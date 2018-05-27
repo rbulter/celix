@@ -17,16 +17,16 @@
  * under the License.
  */
 
-#include "celix/BundleContext.h"
+#include "celix/IBundleActivator.h"
 
 #ifndef CELIX_PHASE3LOCKINGACTIVATOR_H
 #define CELIX_PHASE3LOCKINGACTIVATOR_H
 
-
-class Phase3LockingActivator {
+class Phase3LockingActivator : public celix::IBundleActivator {
 public:
-    celix_status_t start(celix::BundleContext& ctx);
-    celix_status_t stop(celix::BundleContext& ctx);
+    virtual ~Phase3LockingActivator(){}
+    celix_status_t start(celix::BundleContext& ctx) override;
+    celix_status_t stop(celix::BundleContext& ctx) override;
 };
 
 #endif //CELIX_PHASE3LOCKINGAACTIVATOR_H
