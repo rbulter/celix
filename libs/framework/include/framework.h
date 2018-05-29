@@ -27,10 +27,7 @@
 #ifndef FRAMEWORK_H_
 #define FRAMEWORK_H_
 
-typedef struct activator * activator_pt;
-typedef struct activator activator_t;
-
-typedef struct framework * framework_pt;
+typedef struct framework *framework_pt;
 typedef struct framework framework_t;
 
 #include "celix_errno.h"
