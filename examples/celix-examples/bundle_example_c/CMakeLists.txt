@@ -5,9 +5,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -15,26 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if (COMMAND celix_subproject)
-    celix_subproject(EXAMPLES "Option to enable building the Examples" ON DEPS FRAMEWORK LAUNCHER SHELL_TUI LOG_SERVICE LOG_WRITER)
-else ()
-    set(EXAMPLES true) #celix_subproject is only available in the celix project -> using examples dir in other project is also supported
-endif ()
-if (EXAMPLES)
-    add_subdirectory(bundle_example_c)
-    add_subdirectory(bundle_example_cxx)
+add_celix_bundle(bundle_example_c
+    VERSION 1.0.0
+    SOURCES src/bundle_activator.c
+)
 
-    add_subdirectory(services_example_c)
-    add_subdirectory(services_example_cxx)
-
-    add_subdirectory(dm_example)
-    add_subdirectory(dm_example_cxx)
-
-    if (NOT ANDROID)
-    	add_subdirectory(mongoose)
-    endif()
-    add_subdirectory(embedding)
-    add_subdirectory(service_hook_example)
-    add_subdirectory(log_service_example)
-
-endif(EXAMPLES)
+add_celix_container(bundle_example_c_container
+    BUNDLES
+        Celix::shell
+        Celix::shell_tui
+        bundle_example_c
+)

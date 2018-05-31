@@ -728,12 +728,10 @@ long celix_bundleContext_trackServiceTrackers(
  */
 dm_dependency_manager_t* celix_bundleContext_getDependencyManager(celix_bundle_context_t *ctx);
 
-/**
- * Gets the bundle for this bundle context
- *
- * @return the bundle or NULL if unsuccessful.
- */
 celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx);
+
+const char* celix_bundleContext_getProperty(celix_bundle_context_t *ctx, const char *key, const char *defaultVal);
+
 
 #ifdef __cplusplus
 }

@@ -26,7 +26,7 @@
 namespace celix {
     class Constants {
     public:
-        static constexpr const char *const SERVICE_NAME  = OSGI_FRAMEWORK_OBJECTCLASS;
+        static constexpr const char *const SERVICE_NAME = OSGI_FRAMEWORK_OBJECTCLASS;
         static constexpr const char *const SERVICE_ID = OSGI_FRAMEWORK_SERVICE_ID;
         static constexpr const char *const SERVICE_PID = OSGI_FRAMEWORK_SERVICE_PID;
         static constexpr const char *const SERVICE_RANKING = OSGI_FRAMEWORK_SERVICE_RANKING;

@@ -105,16 +105,17 @@ celix_status_t bundleContext_destroy(bundle_context_pt context) {
 	return status;
 }
 
-celix_status_t bundleContext_getBundle(bundle_context_pt context, bundle_pt *bundle) {
+celix_status_t bundleContext_getBundle(bundle_context_pt context, bundle_pt *out) {
 	celix_status_t status = CELIX_SUCCESS;
+    celix_bundle_t *bnd = celix_bundleContext_getBundle(context);
+    if (context == NULL) {
+        status = CELIX_ILLEGAL_ARGUMENT;
+    }
+    if (out != NULL) {
+        *out = bnd;
+    }
 
-	if (context == NULL) {
-		status = CELIX_ILLEGAL_ARGUMENT;
-	} else {
-		*bundle = context->bundle;
-	}
-
-	framework_logIfError(logger, status, NULL, "Failed to get bundle");
+    framework_logIfError(logger, status, NULL, "Failed to get bundle");
 
 	return status;
 }
@@ -404,18 +405,12 @@ celix_status_t bundleContext_getProperty(bundle_context_pt context, const char *
 	return bundleContext_getPropertyWithDefault(context, name, NULL, value);
 }
 
-celix_status_t bundleContext_getPropertyWithDefault(bundle_context_pt context, const char* name, const char* defaultValue, const char** value) {
-    celix_status_t status = CELIX_SUCCESS;
-
-    if (context == NULL || name == NULL) {
-        status = CELIX_ILLEGAL_ARGUMENT;
-    } else {
-        fw_getProperty(context->framework, name, defaultValue, value);
+celix_status_t bundleContext_getPropertyWithDefault(bundle_context_pt context, const char* name, const char* defaultValue, const char** out) {
+    const char *val = celix_bundleContext_getProperty(context, name, defaultValue);
+    if (out != NULL) {
+        *out = val;
     }
-
-    framework_logIfError(logger, status, NULL, "Failed to get property [name=%s]", name);
-
-    return status;
+    return CELIX_SUCCESS;
 }
 
 
@@ -890,10 +885,6 @@ celix_array_list_t* celix_bundleContext_findServicesWithOptions(celix_bundle_con
     return list;
 }
 
-celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx) {
-    return ctx->bundle;
-}
-
 static celix_status_t bundleContext_callServicedTrackerTrackerCallback(void *handle, celix_array_list_t *listeners, bool add) {
     celix_bundle_context_service_tracker_tracker_entry_t *entry = handle;
     if (entry != NULL) {
@@ -959,4 +950,21 @@ long celix_bundleContext_trackServiceTrackers(
         free(entry);
     }
     return trackerId;
+}
+
+celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx) {
+    celix_bundle_t *bnd = NULL;
+    if (ctx != NULL) {
+        bnd = ctx->bundle;
+    }
+    return bnd;
+}
+
+
+const char* celix_bundleContext_getProperty(celix_bundle_context_t *ctx, const char *key, const char *defaultVal) {
+    const char *val = NULL;
+    if (ctx != NULL) {
+        fw_getProperty(ctx->framework, key, defaultVal, &val);
+    }
+    return val;
 }

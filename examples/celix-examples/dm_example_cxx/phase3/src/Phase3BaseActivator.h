@@ -27,6 +27,12 @@ class Phase3BaseActivator : public celix::IBundleActivator {
 public:
     Phase3BaseActivator(){}
     virtual ~Phase3BaseActivator(){}
+
+    Phase3BaseActivator(const Phase3BaseActivator&) = delete;
+    Phase3BaseActivator(Phase3BaseActivator&&) = delete;
+    Phase3BaseActivator& operator=(const Phase3BaseActivator&) = delete;
+    Phase3BaseActivator& operator=(Phase3BaseActivator&&) = delete;
+
     celix_status_t start(celix::BundleContext& ctx) override;
     celix_status_t stop(celix::BundleContext& ctx) override;
 protected:

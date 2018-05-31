@@ -16,13 +16,6 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * constants.h
- *
- *  \date       Apr 29, 2010
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright	Apache License, Version 2.0
- */
 
 #ifndef CELIX_CONSTANTS_H_
 #define CELIX_CONSTANTS_H_
@@ -32,7 +25,6 @@ extern "C" {
 #endif
 
 #define OSGI_FRAMEWORK_OBJECTCLASS "objectClass"
-#define OSGI_FRAMEWORK_SERVICE_NAME "objectClass" //TODO rename in future?
 #define OSGI_FRAMEWORK_SERVICE_ID "service.id"
 #define OSGI_FRAMEWORK_SERVICE_PID "service.pid"
 #define OSGI_FRAMEWORK_SERVICE_RANKING "service.ranking"
@@ -44,21 +36,29 @@ extern "C" {
 #define CELIX_FRAMEWORK_SERVICE_SHARED_LANGUAGE "shared" //e.g. marker services
 
 #define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR "Bundle-Activator"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_CREATE "bundleActivator_create"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_START "bundleActivator_start"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_STOP "bundleActivator_stop"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_DESTROY "bundleActivator_destroy"
+
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_CREATE "celix_bundleActivator_create"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_START "celix_bundleActivator_start"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_STOP "celix_bundleActivator_stop"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_DESTROY "celix_bundleActivator_destroy"
+
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_CREATE "bundleActivator_create"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_START "bundleActivator_start"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_STOP "bundleActivator_stop"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_DESTROY "bundleActivator_destroy"
+
 
 #define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_CREATE "dm_create"
 #define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_INIT "dm_init"
 #define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_DESTROY "dm_destroy"
+
 
 #define OSGI_FRAMEWORK_BUNDLE_SYMBOLICNAME "Bundle-SymbolicName"
 #define OSGI_FRAMEWORK_BUNDLE_VERSION "Bundle-Version"
 #define OSGI_FRAMEWORK_PRIVATE_LIBRARY "Private-Library"
 #define OSGI_FRAMEWORK_EXPORT_LIBRARY "Export-Library"
 #define OSGI_FRAMEWORK_IMPORT_LIBRARY "Import-Library"
-    
+
 #define OSGI_FRAMEWORK_FRAMEWORK_STORAGE "org.osgi.framework.storage"
 #define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN "org.osgi.framework.storage.clean"
 #define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT "onFirstInit"
@@ -70,6 +70,7 @@ extern "C" {
 #define CELIX_AUTO_START_3 "CELIX_AUTO_START_3"
 #define CELIX_AUTO_START_4 "CELIX_AUTO_START_4"
 #define CELIX_AUTO_START_5 "CELIX_AUTO_START_5"
+
 
 
 #ifdef __cplusplus
