@@ -21,6 +21,7 @@ set(SOURCES
         src/cxx_FrameworkFactory_tests.cc
         src/cxx_BundleContext_tests.cc
         src/cxx_Bundle_tests.cc
+        src/cxx_ServiceAdapter_tests.cc
 )
 add_executable(cxx_framework_tests ${SOURCES})
 target_link_libraries(cxx_framework_tests PRIVATE gtest Celix::framework)

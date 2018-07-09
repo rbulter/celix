@@ -26,6 +26,7 @@
 #include "celix/Properties.h"
 #include "celix/Bundle.h"
 #include "celix/IServiceFactory.h"
+#include "celix/ServiceAdapter.h"
 
 #ifndef CXX_CELIX_BUNDLECONTEXT_H
 #define CXX_CELIX_BUNDLECONTEXT_H
@@ -138,6 +139,10 @@ namespace celix {
         BundleContext(celix_bundle_context_t *ctx, celix::Framework& fw); //TODO hide somehow ... friend ?
         virtual ~BundleContext();
 
+        //TODO document, only possible if a service wrapper is available
+        template<typename I>
+        long registerService(I *svcWithWrapper, celix::Properties props = {}) noexcept;
+
         template<typename I>
         long registerService(I *svc, const std::string &serviceName, celix::Properties props = {}) noexcept;
 
@@ -172,6 +177,19 @@ namespace celix {
         long trackService(const std::string &serviceName, std::function<void(I *svc)> set) noexcept;
 
         /**
+        * track service for the provided service type using a ServiceUsageAdaptor.
+        * The highest ranking services will used for the callback.
+        * If a new and higher ranking services the callback with be called again with the new service.
+        * If a service is removed a the callback with be called with next highest ranking service or NULL as service.
+        *
+        * @param serviceName The required service name to track
+        * @param set is a required callback, which will be called when a new highest ranking service is set.
+        * @return the tracker id or < 0 if unsuccessful.
+        */
+        template<typename I>
+        long trackService(std::function<void(I *svc)> set) noexcept;
+
+        /**
          * track services for the provided serviceName and/or filter.
          *
          * @param serviceName The required service name to track
@@ -193,21 +211,34 @@ namespace celix {
         template<typename I>
         long trackServicesWithOptions(const celix::ServiceTrackingOptions<I>& opts) noexcept;
 
-
-        /**
-         * Note use function by const reference. Only used during the call.
-         * @param serviceId
-         * @param I
-         * @return
-         */
+        //TODO remove if WithOptions is available
         template<typename I>
         bool useServiceWithId(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept;
 
         template<typename I>
+        bool useServiceWithId(long serviceId, const std::string &/*serviceName*/ /*sanity*/, const std::function<void(I &svc)> &use) noexcept;
+
+        //TODO remove if WithOptions is available
+        template<typename I>
         bool useService(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept;
 
         template<typename I>
+        bool useService(const std::string &serviceName, const std::function<void(I &svc)> &use) noexcept;
+
+        //TODO remove if WithOptions is available
+        template<typename I>
         void useServices(const std::string &serviceName, const std::function<void(I &svc, const celix::Properties &props, const celix::Bundle &svcOwner)> &use) noexcept;
+
+        template<typename I>
+        void useServices(const std::string &serviceName, const std::function<void(I &svc)> &use) noexcept;
+
+        //TODO rest of variants with service & wrapper for useServiceWithId, useService and useServices
+        template<typename I>
+        bool useService(const std::function<void(I &svc)> &use) noexcept;
+
+        template<typename I>
+        void useServices(const std::function<void(I &svc)> &use) noexcept;
+
 
         //TODO add useService(s)WithOptions
         //TODO add useCService(s) variants
@@ -242,20 +273,6 @@ namespace celix {
         celix::Bundle& getBundle() noexcept;
 
         celix::dm::DependencyManager& getDependencyManager() noexcept;
-
-        /** TODO
-        long registerEmbeddedBundle(
-                std::string id,
-                std::function<void(celix::BundleContext& ctx)> start,
-                std::function<void(celix::BundleContext& ctx)> stop,
-                celix::Properties manifest = {},
-                bool autoStart = true
-        ) noexcept;
-
-         void registerEmbeddedBundle(const celix::BundleRegistrationOptions &opts) noexcept = 0;
-        */
-
-
 
         long installBundle(const std::string &bundleLocation, bool autoStart = true) noexcept;
 

@@ -34,8 +34,8 @@
 #define OSGI_SHELL_COMMAND_USAGE "command.usage"
 #define OSGI_SHELL_COMMAND_DESCRIPTION "command.description"
 
-static const char * const OSGI_SHELL_COMMAND_SERVICE_NAME = "commandService";
-static const char * const OSGI_SHELL_COMMAND_SERVICE_VERSION = "1.0.0";
+#define OSGI_SHELL_COMMAND_SERVICE_NAME "commandService"
+#define OSGI_SHELL_COMMAND_SERVICE_VERSION "1.0.0"
 
 typedef struct commandService command_service_t;
 typedef command_service_t * command_service_pt;

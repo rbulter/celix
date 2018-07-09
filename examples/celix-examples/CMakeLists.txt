@@ -37,4 +37,7 @@ if (EXAMPLES)
     add_subdirectory(service_hook_example)
     add_subdirectory(log_service_example)
 
+
+    add_subdirectory(shell_command_example)
+
 endif(EXAMPLES)
