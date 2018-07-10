@@ -71,6 +71,10 @@ namespace celix {
         public:
             ServiceAdapter(void *_svc) : cSvc{static_cast<command_service_t*>(_svc)} {}
             virtual ~ServiceAdapter() = default;
+
+            ServiceAdapter(const ServiceAdapter&) = delete;
+            ServiceAdapter& operator=(const ServiceAdapter&) = delete;
+
             celix::IShellCommand* adapt() override { return this; }
 
             int executeCommand(const std::string &commandLine, std::ostream &out, std::ostream &err) override {

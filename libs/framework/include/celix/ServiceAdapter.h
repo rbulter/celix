@@ -81,6 +81,8 @@ namespace celix {
         public:
             DefaultServiceAdapter(I *_svc) : svc{_svc} {}
             virtual ~DefaultServiceAdapter() = default;
+            DefaultServiceAdapter(const DefaultServiceAdapter&) = delete;
+            DefaultServiceAdapter& operator=(const DefaultServiceAdapter&) = delete;
             I* adapt() override { return svc; }
         private:
             I* svc;
@@ -113,6 +115,8 @@ namespace celix {
         public:
             DefaultServiceAdapter(void *_svc) : svc{static_cast<I*>(_svc)} {}
             virtual ~DefaultServiceAdapter() = default;
+            DefaultServiceAdapter(const DefaultServiceAdapter&) = delete;
+            DefaultServiceAdapter& operator=(const DefaultServiceAdapter&) = delete;
             I* adapt() override { return svc; }
         private:
             I* svc;

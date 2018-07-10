@@ -28,7 +28,7 @@
 namespace {
     class BundleActivator : public celix::IBundleActivator, public celix::IShellCommand {
     public:
-        celix_status_t start(celix::BundleContext &_ctx)  override {
+        celix_status_t start(celix::BundleContext &_ctx)override {
             this->ctx = &_ctx;
             celix::Properties props{};
             props[OSGI_SHELL_COMMAND_NAME] = "cxx_exmpl";
@@ -50,7 +50,7 @@ namespace {
         }
 
     private:
-        celix::BundleContext *ctx;
+        celix::BundleContext *ctx{nullptr};
         long svcId{-1};
     };
 }

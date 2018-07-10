@@ -30,7 +30,7 @@ public:
         this->fw_ptr = std::unique_ptr<celix::Framework>{celix::FrameworkFactory::newFramework(std::move(config))};
     }
 
-    ~ServiceAdapterTestd(){}
+    ~ServiceAdapterTest(){}
 
     celix::Framework& framework() { return *(this->fw_ptr); }
 private:
@@ -111,6 +111,10 @@ public:
     public:
         ServiceAdapter(IHelloServiceNoDefaultWrapper *_svc) : svc{_svc} {}
         virtual ~ServiceAdapter() = default;
+
+        ServiceAdapter(const ServiceAdapter&) = delete;
+        ServiceAdapter& operator=(const ServiceAdapter&) = delete;
+
         IHelloServiceNoDefaultWrapper* adapt() override { return svc; }
     private:
         IHelloServiceNoDefaultWrapper* svc;
@@ -134,6 +138,10 @@ public:
     public:
         ServiceAdapter(void *_svc) : svc{static_cast<IHelloServiceNoDefaultWrapper*>(_svc)} {}
         virtual ~ServiceAdapter() = default;
+
+        ServiceAdapter(const ServiceAdapter&) = delete;
+        ServiceAdapter& operator=(const ServiceAdapter&) = delete;
+
         IHelloServiceNoDefaultWrapper* adapt() override { return svc; }
     private:
         IHelloServiceNoDefaultWrapper* svc;
@@ -233,6 +241,10 @@ public:
     public:
         ServiceAdapter(void *_svc) : cSvc{static_cast<do_service_t*>(_svc)} {}
         virtual ~ServiceAdapter() = default;
+
+        ServiceAdapter(const ServiceAdapter&) = delete;
+        ServiceAdapter& operator=(const ServiceAdapter&) = delete;
+
         IDoService* adapt() override { return this; }
 
         int do_something() override {
