@@ -37,7 +37,7 @@ namespace celix {
                 this->setFrameworkContext();
             }
 
-            FrameworkImpl(framework_t *c_fw) : owner(false) {
+            FrameworkImpl(celix_framework_t *c_fw) : owner(false) {
                 //wrapper framework
                 this->c_fwm = c_fw;
                 //assume started framework
@@ -105,8 +105,8 @@ namespace celix {
 
             void setFrameworkContext() {
                 //create and set framework bundle context (replace invalid bundle context)
-                bundle_t *fwmBundle = nullptr;
-                bundle_context_t *fwmCtx = nullptr;
+                celix_bundle_t *fwmBundle = nullptr;
+                celix_bundle_context_t *fwmCtx = nullptr;
                 framework_getFrameworkBundle(this->c_fwm, &fwmBundle);
                 bundle_getContext(fwmBundle, &fwmCtx);
                 this->bundleContextsCache.emplace(std::piecewise_construct,
@@ -116,7 +116,7 @@ namespace celix {
 
 
             bool owner;
-            framework_t *c_fwm{nullptr};
+            celix_framework_t *c_fwm{nullptr};
             std::map<long,celix::BundleContext> bundleContextsCache{};
             std::vector<celix::impl::BundleImpl> fwBundle{}; //optional entry
 

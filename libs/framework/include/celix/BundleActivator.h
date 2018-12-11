@@ -42,7 +42,7 @@ namespace celix {
         std::unique_ptr<celix::BundleContext> ctx{};
         std::unique_ptr<celix::IBundleActivator> activator{};
     public:
-        BundleActivatorAdapter(bundle_context_t *c_ctx) {
+        BundleActivatorAdapter(celix_bundle_context_t *c_ctx) {
             this->fw = std::unique_ptr<celix::Framework>{new celix::impl::FrameworkImpl{c_ctx}}; \
             this->ctx = std::unique_ptr<celix::BundleContext>{new celix::BundleContext{c_ctx, *this->fw}}; \
             this->activator = nullptr;
@@ -79,23 +79,23 @@ namespace celix {
  * adapt the C bundle activator calls to the provided C++ bundle activator class.
  */
 #define CELIX_GEN_CXX_BUNDLE_ACTIVATOR(clazz)                                                                          \
-extern "C" celix_status_t bundleActivator_create(bundle_context_t *c_ctx, void **userData) {                           \
+extern "C" celix_status_t bundleActivator_create(celix_bundle_context_t *c_ctx, void **userData) {                           \
     auto *data = new celix::BundleActivatorAdapter<clazz>{c_ctx};                                                      \
     *userData = data;                                                                                                  \
     return CELIX_SUCCESS;                                                                                              \
 }                                                                                                                      \
                                                                                                                        \
-extern "C" celix_status_t bundleActivator_start(void *userData, bundle_context_t *) {                                  \
+extern "C" celix_status_t bundleActivator_start(void *userData, celix_bundle_context_t *) {                                  \
     auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
     return data->start();                                                                                              \
 }                                                                                                                      \
                                                                                                                        \
-extern "C" celix_status_t bundleActivator_stop(void *userData, bundle_context_t *) {                                   \
+extern "C" celix_status_t bundleActivator_stop(void *userData, celix_bundle_context_t *) {                                   \
     auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
     return data->stop();                                                                                               \
 }                                                                                                                      \
                                                                                                                        \
-extern "C" celix_status_t bundleActivator_destroy(void *userData, bundle_context_t*) {                                 \
+extern "C" celix_status_t bundleActivator_destroy(void *userData, celix_bundle_context_t*) {                                 \
     auto *data = static_cast<celix::BundleActivatorAdapter<clazz>*>(userData);                                         \
     delete data;                                                                                                       \
     return CELIX_SUCCESS;                                                                                              \

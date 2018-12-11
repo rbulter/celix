@@ -21,6 +21,8 @@ else ()
     set(EXAMPLES true) #celix_subproject is only available in the celix project -> using examples dir in other project is also supported
 endif ()
 if (EXAMPLES)
+    add_definitions(-DADD_CELIX_DEPRECATED_WARNING) #ensure that no deprecated api is used in the examples
+
     add_subdirectory(bundle_example_c)
     add_subdirectory(bundle_example_cxx)
 
@@ -31,7 +33,7 @@ if (EXAMPLES)
     add_subdirectory(dm_example_cxx)
 
     if (NOT ANDROID)
-    	add_subdirectory(mongoose)
+        add_subdirectory(civetweb)
     endif()
     add_subdirectory(embedding)
     add_subdirectory(service_hook_example)

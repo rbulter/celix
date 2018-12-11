@@ -33,6 +33,7 @@
 
 extern "C" {
 #include "properties.h"
+#include "celix_properties.h"
 }
 
 int main(int argc, char** argv) {
@@ -76,6 +77,35 @@ TEST(properties, load) {
 	STRCMP_EQUAL("c \t d", valueB);
 
 	properties_destroy(properties);
+}
+
+TEST(properties, asLong) {
+	celix_properties_t *props = celix_properties_create();
+	celix_properties_set(props, "t1", "42");
+	celix_properties_set(props, "t2", "-42");
+	celix_properties_set(props, "t3", "");
+	celix_properties_set(props, "t4", "42 bla"); //converts to 42
+	celix_properties_set(props, "t5", "bla");
+
+	long v = celix_properties_getAsLong(props, "t1", -1);
+	LONGS_EQUAL(42, v);
+
+	v = celix_properties_getAsLong(props, "t2", -1);
+	LONGS_EQUAL(-42, v);
+
+	v = celix_properties_getAsLong(props, "t3", -1);
+	LONGS_EQUAL(-1, v);
+
+	v = celix_properties_getAsLong(props, "t4", -1);
+	LONGS_EQUAL(42, v);
+
+	v = celix_properties_getAsLong(props, "t5", -1);
+	LONGS_EQUAL(-1, v);
+
+	v = celix_properties_getAsLong(props, "non-existing", -1);
+	LONGS_EQUAL(-1, v);
+
+	celix_properties_destroy(props);
 }
 
 TEST(properties, store) {
@@ -128,3 +158,84 @@ TEST(properties, getSet) {
 	properties_destroy(properties);
 }
 
+TEST(properties, longTest) {
+	properties = properties_create();
+
+	celix_properties_set(properties, "a", "2");
+	celix_properties_set(properties, "b", "-10032L");
+	celix_properties_set(properties, "c", "");
+	celix_properties_set(properties, "d", "garbage");
+
+	long a = celix_properties_getAsLong(properties, "a", -1L);
+	long b = celix_properties_getAsLong(properties, "b", -1L);
+	long c = celix_properties_getAsLong(properties, "c", -1L);
+	long d = celix_properties_getAsLong(properties, "d", -1L);
+	long e = celix_properties_getAsLong(properties, "e", -1L);
+
+	CHECK_EQUAL(2, a);
+	CHECK_EQUAL(-10032L, b);
+	CHECK_EQUAL(-1L, c);
+	CHECK_EQUAL(-1L, d);
+	CHECK_EQUAL(-1L, e);
+
+	celix_properties_setLong(properties, "a", 3L);
+	celix_properties_setLong(properties, "b", -4L);
+	a = celix_properties_getAsLong(properties, "a", -1L);
+	b = celix_properties_getAsLong(properties, "b", -1L);
+	CHECK_EQUAL(3L, a);
+	CHECK_EQUAL(-4L, b);
+
+	celix_properties_destroy(properties);
+}
+
+TEST(properties, boolTest) {
+	properties = properties_create();
+
+	celix_properties_set(properties, "a", "true");
+	celix_properties_set(properties, "b", "false");
+	celix_properties_set(properties, "c", "  true  ");
+	celix_properties_set(properties, "d", "garbage");
+
+	bool a = celix_properties_getAsBool(properties, "a", false);
+	bool b = celix_properties_getAsBool(properties, "b", true);
+	bool c = celix_properties_getAsBool(properties, "c", false);
+	bool d = celix_properties_getAsBool(properties, "d", true);
+	bool e = celix_properties_getAsBool(properties, "e", false);
+	bool f = celix_properties_getAsBool(properties, "f", true);
+
+	CHECK_EQUAL(true, a);
+	CHECK_EQUAL(false, b);
+	CHECK_EQUAL(true, c);
+	CHECK_EQUAL(true, d);
+	CHECK_EQUAL(false, e);
+	CHECK_EQUAL(true, f);
+
+	celix_properties_setBool(properties, "a", true);
+	celix_properties_setBool(properties, "b", false);
+	a = celix_properties_getAsBool(properties, "a", false);
+	b = celix_properties_getAsBool(properties, "b", true);
+	CHECK_EQUAL(true, a);
+	CHECK_EQUAL(false, b);
+
+	celix_properties_destroy(properties);
+}
+
+TEST(properties, sizeAndIteratorTest) {
+	celix_properties_t *props = celix_properties_create();
+	CHECK_EQUAL(0, celix_properties_size(props));
+	celix_properties_set(props, "a", "1");
+	celix_properties_set(props, "b", "2");
+	CHECK_EQUAL(2, celix_properties_size(props));
+	celix_properties_set(props, "c", "  3  ");
+	celix_properties_set(props, "d", "4");
+	CHECK_EQUAL(4, celix_properties_size(props));
+
+	int count = 0;
+	const char *_key = NULL;
+	CELIX_PROPERTIES_FOR_EACH(props, _key) {
+		count++;
+	}
+	CHECK_EQUAL(4, count);
+
+	celix_properties_destroy(props);
+}

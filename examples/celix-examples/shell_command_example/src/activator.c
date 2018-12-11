@@ -39,7 +39,7 @@ struct useShellServiceHandle {
 
 static void useShellService(void *handle, void *_svc __attribute__((unused)), const celix_properties_t *props) {
     struct useShellServiceHandle *useHandle = handle;
-    const char *name = celix_properties_getWithDefault(props, OSGI_SHELL_COMMAND_NAME, "Not Found");
+    const char *name = celix_properties_get(props, OSGI_SHELL_COMMAND_NAME, "Not Found");
     fprintf(useHandle->out, "%i: Command %s found\n", useHandle->count++, name);
 }
 

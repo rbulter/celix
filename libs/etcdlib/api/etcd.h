@@ -37,6 +37,10 @@
 #define ETCDLIB_ACTION_DELETE   "delete"
 #define ETCDLIB_ACTION_EXPIRE   "expire"
 
+#define ETCDLIB_RC_OK           0
+#define ETCDLIB_RC_ERROR        1
+#define ETCDLIB_RC_TIMEOUT      2
+
 typedef void (*etcd_key_value_callback) (const char *key, const char *value, void* arg);
 
 /**
@@ -78,7 +82,15 @@ int etcd_get_directory(const char* directory, etcd_key_value_callback callback, 
 int etcd_set(const char* key, const char* value, int ttl, bool prevExist);
 
 /**
- * @desc Setting an Etcd-key/value and checks if there is a different previuos value
+ * @desc Refresh the ttl of an existing key.
+ * @param key the etcd key to refresh.
+ * @param ttl the ttl value to use.
+ * @return 0 on success, non zero otherwise.
+ */
+int etcd_refresh(const char *key, int ttl);
+
+/**
+ * @desc Setting an Etcd-key/value and checks if there is a different previous value
  * @param const char* key. The Etcd-key (Note: a leading '/' should be avoided)
  * @param const char* value. The Etcd-value 
  * @param int ttl. If non-zero this is used as the TTL value
@@ -103,7 +115,7 @@ int etcd_del(const char* key);
  * @param char** value. If not NULL, memory is allocated and contains the new value. The caller is responsible of freeing the memory.
  * @param char** rkey. If not NULL, memory is allocated and contains the updated key. The caller is responsible of freeing the memory.
  * @param long long* modifiedIndex. If not NULL, the index of the modification is written.
- * @return 0 on success, non zero otherwise
+ * @return ETCDLIB_RC_OK (0) on success, non zero otherwise. Note that a timeout is signified by a ETCDLIB_RC_TIMEOUT return code.
  */
 int etcd_watch(const char* key, long long index, char** action, char** prevValue, char** value, char** rkey, long long* modifiedIndex);
 

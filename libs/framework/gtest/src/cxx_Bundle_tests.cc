@@ -25,7 +25,6 @@ class BundleTest : public ::testing::Test {
 public:
     BundleTest() {
         celix::Properties config{};
-        config["org.osgi.framework.storage.clean"] = "onFirstInit";
         config["org.osgi.framework.storage"] = "test-cache"; //TODO tmp dir?
         this->fw_ptr = std::unique_ptr<celix::Framework>{celix::FrameworkFactory::newFramework(std::move(config))};
     }
@@ -48,7 +47,7 @@ TEST_F(BundleTest, getInfoFromFrameworkBundle) {
 //    EXPECT_EQ("system", name);
 
     std::string sym = bnd.getBundleSymbolicName();
-    EXPECT_EQ("framework", sym);
+    EXPECT_EQ("Framework", sym);
 
     std::string loc = bnd.getBundleLocation();
     EXPECT_EQ("System Bundle", loc);

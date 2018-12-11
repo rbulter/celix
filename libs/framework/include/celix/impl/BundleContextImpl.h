@@ -20,8 +20,8 @@
 #ifndef CELIX_IMPL_BUNDLECONTEXTIMPL_H
 #define CELIX_IMPL_BUNDLECONTEXTIMPL_H
 
-#include <mutex>
 #include <cstring>
+#include <mutex>
 #include <memory>
 
 #include "bundle_context.h"
@@ -60,8 +60,8 @@ namespace celix {
         };
 
         struct ServiceTrackingEntry {
-            celix_service_tracking_options_t cOpts{{nullptr, nullptr, nullptr, nullptr}, nullptr, nullptr, nullptr, nullptr,
-                                                   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+            ServiceTrackingEntry() { std::memset(&cOpts, 0, sizeof(cOpts));}
+            celix_service_tracking_options cOpts;
             std::unique_ptr<ServiceTrackingEntryFunctions> functions{nullptr};
             std::unique_ptr<celix::IServiceAdapterFactoryBase> adapter{nullptr};
             std::map<void*, std::unique_ptr<celix::IServiceAdapterBase>> setAdaptersCache{};
@@ -79,7 +79,7 @@ namespace celix {
         Impl& operator=(Impl&&) = delete;
 
         //initialized in ctor
-        bundle_context_t *c_ctx;
+        celix_bundle_context_t *c_ctx;
         celix::Framework& fw;
         celix::impl::BundleImpl bnd;
         celix::dm::DependencyManager dm;
@@ -103,13 +103,13 @@ namespace {
         celix::Properties result{};
         const char *key = nullptr;
         CELIX_PROPERTIES_FOR_EACH(const_cast<celix_properties_t *>(c_props), key) {
-            result[key] = celix_properties_get(c_props, key);
+            result[key] = celix_properties_get(c_props, key, nullptr);
         }
         return result;
     }
 }
 
-inline celix::BundleContext::BundleContext(bundle_context_t *ctx, celix::Framework& fw) {
+inline celix::BundleContext::BundleContext(celix_bundle_context_t *ctx, celix::Framework& fw) {
     this->pimpl = std::unique_ptr<celix::BundleContext::Impl>{new celix::BundleContext::Impl(ctx, fw)};
 }
 
@@ -192,7 +192,7 @@ inline std::string celix::BundleContext::getProperty(const std::string &key, std
 inline long celix::BundleContext::installBundle(const std::string &bundleLocation, bool autoStart) noexcept {
     long bndId = -1;
     if (this->pimpl->c_ctx != nullptr) {
-        bundle_t *bnd = nullptr;
+        celix_bundle_t *bnd = nullptr;
         bundleContext_installBundle(this->pimpl->c_ctx, bundleLocation.c_str(), &bnd);
         if (bnd != nullptr) {
             bundle_getBundleId(bnd, &bndId);
@@ -215,14 +215,14 @@ inline void celix::BundleContext::useBundles(const std::function<void(const celi
     celix_bundleContext_useBundles(this->pimpl->c_ctx, (void*)(&use), c_use);
 }
 
-inline bool celix::BundleContext::useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept {
+inline void celix::BundleContext::useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept {
     auto c_use = [](void *handle, const celix_bundle_t *c_bnd) {
         auto *func =  static_cast<std::function<void(const celix::Bundle &bnd)>*>(handle);
         auto m_bnd = const_cast<celix_bundle_t*>(c_bnd);
         celix::impl::BundleImpl bnd{m_bnd};
         (*func)(bnd);
     };
-    return celix_bundleContext_useBundle(this->pimpl->c_ctx, bundleId, (void*)(&use), c_use);
+    celix_bundleContext_useBundle(this->pimpl->c_ctx, bundleId, (void*)(&use), c_use);
 }
 
 inline celix::Framework& celix::BundleContext::getFramework() noexcept {

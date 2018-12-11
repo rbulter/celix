@@ -35,11 +35,9 @@ namespace celix {
         static constexpr const char *const SERVICE_LANGUAGE = CELIX_FRAMEWORK_SERVICE_LANGUAGE;
         static constexpr const char *const SERVICE_C_LANG = CELIX_FRAMEWORK_SERVICE_C_LANGUAGE;
         static constexpr const char *const SERVICE_CXX_LANG = CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE;
-        static constexpr const char *const SERVICE_SHARED_LANG = CELIX_FRAMEWORK_SERVICE_SHARED_LANGUAGE; //e.g. marker services
 
         static constexpr const char *const FRAMEWORK_STORAGE = OSGI_FRAMEWORK_FRAMEWORK_STORAGE;
-        static constexpr const char *const FRAMEWORK_CLEAN = OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN;
-        static constexpr const char *const FRAMEWORK_CLEAN_ON_FIRST_INIT = OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT;
+        static constexpr const char *const FRAMEWORK_CLEAN = OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_NAME;
         static constexpr const char *const FRAMEWORK_UUID = OSGI_FRAMEWORK_FRAMEWORK_UUID;
     };
 }

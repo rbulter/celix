@@ -21,6 +21,7 @@
 #include "celix_service_factory.h"
 #include "celix_properties.h"
 #include "celix_array_list.h"
+#include "celix_filter.h"
 
 #ifndef CELIX_BUNDLE_CONTEXT_H_
 #define CELIX_BUNDLE_CONTEXT_H_
@@ -200,12 +201,19 @@ typedef struct celix_service_filter_options {
      * The optional service language to filter for. If this is NULL or "" the C language will be used.
      */
     const char* serviceLanguage;
+
+
+    /**
+     * Whether to ignore (not filter for) the service.lang property.
+     * If this is set the serviceLanguage field is ignored and the (service.lang=<>) part is not added tot he filter
+     */
+    bool ignoreServiceLanguage;
 } celix_service_filter_options_t;
 
 /**
  * Macro to create a empty celix_service_filter_options_t type.
  */
-#define CELIX_EMPTY_SERVICE_FILTER_OPTIONS {.serviceName = NULL, .versionRange = NULL, .filter = NULL, .serviceLanguage = NULL}
+#define CELIX_EMPTY_SERVICE_FILTER_OPTIONS {.serviceName = NULL, .versionRange = NULL, .filter = NULL, .serviceLanguage = NULL, .ignoreServiceLanguage = false}
 
 
 /**
@@ -267,7 +275,7 @@ long celix_bundleContext_trackServices(
 /**
  * Service Tracker Options used to fine tune which services to track and the callback to be used for the tracked services.
  */
-typedef struct celix_service_tracker_options {
+typedef struct celix_service_tracking_options {
     /**
      * The service filter options, used to setup the filter for the service to track.
      */
@@ -349,6 +357,7 @@ typedef struct celix_service_tracker_options {
     .filter.versionRange = NULL, \
     .filter.filter = NULL, \
     .filter.serviceLanguage = NULL, \
+    .filter.ignoreServiceLanguage = false, \
     .callbackHandle = NULL, \
     .set = NULL, \
     .add = NULL, \
@@ -541,11 +550,19 @@ void celix_bundleContext_useServicesWithOptions(
 
 
 
-
+/**
+ * List the installed and started bundle ids.
+ * The bundle ids does not include the framework bundle (bundle id 0).
+ *
+ * @param ctx The bundle context
+ * @return A array with bundle ids (long). The caller is responsible for destroying the array.
+ */
+celix_array_list_t* celix_bundleContext_listBundles(celix_bundle_context_t *ctx);
 
 
 /**
  * Install and optional start a bundle.
+ * Will silently ignore bundle ids < 0.
  *
  * @param ctx The bundle context
  * @param bundleLoc The bundle location to the bundle zip file.
@@ -556,12 +573,33 @@ long celix_bundleContext_installBundle(celix_bundle_context_t *ctx, const char *
 
 /**
  * Uninstall the bundle with the provided bundle id. If needed the bundle will be stopped first.
+ * Will silently ignore bundle ids < 0.
  *
  * @param ctx The bundle context
- * @param bundleId The bundle id to stop
+ * @param bundleId The bundle id to uninstall.
  * @return true if the bundle is correctly uninstalled. False if not.
  */
 bool celix_bundleContext_uninstallBundle(celix_bundle_context_t *ctx, long bundleId);
+
+/**
+ * Stop the bundle with the provided bundle id.
+ * Will silently ignore bundle ids < 0.
+ *
+ * @param ctx The bundle context
+ * @param bundleId The bundle id to stop.
+ * @return true if the bundle is found & correctly stop. False if not.
+ */
+bool celix_bundleContext_stopBundle(celix_bundle_context_t *ctx, long bundleId);
+
+/**
+ * Start the bundle with the provided bundle id.
+ * Will silently ignore bundle ids < 0.
+ *
+ * @param ctx The bundle context
+ * @param bundleId The bundle id to start.
+ * @return true if the bundle is found & correctly started. False if not.
+ */
+bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bundleId);
 
 /**
  * track bundles
@@ -614,6 +652,12 @@ typedef struct celix_bundle_tracker_options {
      * @param event     The bundle event. Is only valid during the callback.
      */
     void (*onBundleEvent)(void *handle, const celix_bundle_event_t *event);
+
+    /**
+     * Default the framework bundle (bundle id 0) will not trigger the callbacks.
+     * This is done, because the framework bundle is a special bundle which is generally not needed in the callbacks.
+     */
+    bool includeFrameworkBundle;
 } celix_bundle_tracking_options_t;
 
 /**
@@ -645,7 +689,7 @@ long celix_bundleContext_trackBundlesWithOptions(
  * @param use               The callback which will be called for the currently started bundles.
  *                          The bundle pointers are only guaranteed to be valid during the callback.
  */
-bool celix_bundleContext_useBundle(
+void celix_bundleContext_useBundle(
         celix_bundle_context_t *ctx,
         long bundleId,
         void *callbackHandle,
@@ -726,12 +770,50 @@ long celix_bundleContext_trackServiceTrackers(
  *
  * @return the dependency manager or NULL if unsuccessful.
  */
-dm_dependency_manager_t* celix_bundleContext_getDependencyManager(celix_bundle_context_t *ctx);
+celix_dependency_manager_t* celix_bundleContext_getDependencyManager(celix_bundle_context_t *ctx);
 
 celix_bundle_t* celix_bundleContext_getBundle(celix_bundle_context_t *ctx);
 
+
+/**
+ * Gets the config property - or environment variable if the config property does not exist - for the provided name.
+ * @param key The key of the property to receive.
+ * @param defaultVal The default value to use if the property is not found (can be NULL).
+ * @return The property value for the provided key or the provided defaultValue is the key is not found.
+ */
 const char* celix_bundleContext_getProperty(celix_bundle_context_t *ctx, const char *key, const char *defaultVal);
 
+/**
+ * Gets the config property as converts it to long. If the property is not a valid long, the defaultValue will be returned.
+ * The rest of the behaviour is the same as celix_bundleContext_getProperty.
+
+ * @param key The key of the property to receive.
+ * @param defaultVal The default value to use if the property is not found.
+ * @return The property value for the provided key or the provided defaultValue is the key is not found.
+ */
+long celix_bundleContext_getPropertyAsLong(celix_bundle_context_t *ctx, const char *key, long defaultValue);
+
+/**
+ * Gets the config property as converts it to double. If the property is not a valid double, the defaultValue will be returned.
+ * The rest of the behaviour is the same as celix_bundleContext_getProperty.
+
+ * @param key The key of the property to receive.
+ * @param defaultVal The default value to use if the property is not found.
+ * @return The property value for the provided key or the provided defaultValue is the key is not found.
+ */
+double celix_bundleContext_getPropertyAsDouble(celix_bundle_context_t *ctx, const char *key, double defaultValue);
+
+/**
+ * Gets the config property as converts it to bool. If the property is not a valid bool, the defaultValue will be returned.
+ * The rest of the behaviour is the same as celix_bundleContext_getProperty.
+
+ * @param key The key of the property to receive.
+ * @param defaultVal The default value to use if the property is not found.
+ * @return The property value for the provided key or the provided defaultValue is the key is not found.
+ */
+bool celix_bundleContext_getPropertyAsBool(celix_bundle_context_t *ctx, const char *key, bool defaultValue);
+
+//TODO getPropertyAs for int, uint, ulong, bool, etc
 
 #ifdef __cplusplus
 }

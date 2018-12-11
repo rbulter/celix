@@ -252,14 +252,7 @@ bool arrayList_removeElement(array_list_pt list, void * element) {
 }
 
 void arrayList_clear(array_list_pt list) {
-	unsigned int i;
-	list->modCount++;
-
-	for (i = 0; i < list->size; i++) {
-		// free(list->elementData[i]);
-		memset(&list->elementData[i], 0, sizeof(celix_array_list_entry_t));
-	}
-	list->size = 0;
+	celix_arrayList_clear(list);
 }
 
 bool arrayList_addAll(array_list_pt list, array_list_pt toAdd) {
@@ -383,7 +376,7 @@ void celix_arrayList_destroy(celix_array_list_t *list) {
 	free(list);
 }
 
-size_t celix_arrayList_size(const celix_array_list_t *list) {
+int celix_arrayList_size(const celix_array_list_t *list) {
 	return list->size;
 }
 
@@ -420,14 +413,54 @@ void celix_arrayList_add(celix_array_list_t *list, void * element) {
 	arrayList_addEntry(list, entry);
 }
 
-void celix_arrayList_addInt(celix_array_list_t *list, int val) { celix_array_list_entry_t entry = { .intVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addLong(celix_array_list_t *list, long val)  { celix_array_list_entry_t entry = { .longVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addUInt(celix_array_list_t *list, unsigned int val)  { celix_array_list_entry_t entry = { .uintVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addULong(celix_array_list_t *list, unsigned long val)  { celix_array_list_entry_t entry = { .ulongVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addFloat(celix_array_list_t *list, float val)  { celix_array_list_entry_t entry = { .floatVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addDouble(celix_array_list_t *list, double val)  { celix_array_list_entry_t entry = { .doubleVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addBool(celix_array_list_t *list, bool val)  { celix_array_list_entry_t entry = { .boolVal = val }; arrayList_addEntry(list, entry);}
-void celix_arrayList_addSize(celix_array_list_t *list, size_t val)  { celix_array_list_entry_t entry = { .sizeVal = val }; arrayList_addEntry(list, entry);}
+void celix_arrayList_addInt(celix_array_list_t *list, int val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.intVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addLong(celix_array_list_t *list, long val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.longVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addUInt(celix_array_list_t *list, unsigned int val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.uintVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addULong(celix_array_list_t *list, unsigned long val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.ulongVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addDouble(celix_array_list_t *list, double val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.doubleVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addFloat(celix_array_list_t *list, float val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.floatVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addBool(celix_array_list_t *list, bool val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.boolVal = val; 
+	arrayList_addEntry(list, entry);
+}
+void celix_arrayList_addSize(celix_array_list_t *list, size_t val) { 
+	celix_array_list_entry_t entry; 
+	memset(&entry, 0, sizeof(entry)); 
+	entry.sizeVal = val; 
+	arrayList_addEntry(list, entry);
+}
 
 int celix_arrayList_indexOf(celix_array_list_t *list, celix_array_list_entry_t entry) {
 	size_t size = celix_arrayList_size(list);
@@ -442,7 +475,7 @@ int celix_arrayList_indexOf(celix_array_list_t *list, celix_array_list_entry_t e
 	}
 	return index;
 }
-void celix_arrayList_remove(celix_array_list_t *list, int index) {
+void celix_arrayList_removeAt(celix_array_list_t *list, int index) {
 	if (index >= 0 && index < list->size) {
 		list->modCount++;
 		size_t numMoved = list->size - index - 1;
@@ -453,8 +486,80 @@ void celix_arrayList_remove(celix_array_list_t *list, int index) {
 
 void celix_arrayList_removeEntry(celix_array_list_t *list, celix_array_list_entry_t entry) {
 	int index = celix_arrayList_indexOf(list, entry);
-	celix_arrayList_remove(list, index);
+	celix_arrayList_removeAt(list, index);
 }
 
 
+void celix_arrayList_remove(celix_array_list_t *list, void *ptr) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.voidPtrVal = ptr;
+	celix_arrayList_removeEntry(list, entry);
+}
 
+void celix_arrayList_removeInt(celix_array_list_t *list, int val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.intVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeLong(celix_array_list_t *list, long val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.longVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeUInt(celix_array_list_t *list, unsigned int val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.uintVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeULong(celix_array_list_t *list, unsigned long val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.ulongVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeFloat(celix_array_list_t *list, float val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.floatVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeDouble(celix_array_list_t *list, double val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.doubleVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeBool(celix_array_list_t *list, bool val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.boolVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_removeSize(celix_array_list_t *list, size_t val) {
+	celix_array_list_entry_t entry;
+        memset(&entry, 0, sizeof(entry));
+	entry.sizeVal = val;
+	celix_arrayList_removeEntry(list, entry);
+}
+
+void celix_arrayList_clear(celix_array_list_t *list) {
+	unsigned int i;
+	list->modCount++;
+
+	for (i = 0; i < list->size; i++) {
+		// free(list->elementData[i]);
+		memset(&list->elementData[i], 0, sizeof(celix_array_list_entry_t));
+	}
+	list->size = 0;
+}

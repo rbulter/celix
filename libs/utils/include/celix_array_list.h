@@ -17,7 +17,6 @@
  *under the License.
  */
 
-#include "array_list.h"
 #include "celixbool.h"
 #include "exports.h"
 #include "celix_errno.h"
@@ -30,8 +29,22 @@
 extern "C" {
 #endif
 
+typedef union celix_array_list_entry {
+    void *voidPtrVal;
+    int intVal;
+    long int longVal;
+    unsigned int uintVal;
+    unsigned long ulongVal;
+    double doubleVal;
+    float floatVal;
+    bool boolVal;
+    size_t sizeVal;
+} celix_array_list_entry_t;
 
-typedef struct celix_arrayList celix_array_list_t;
+typedef struct celix_array_list celix_array_list_t;
+
+typedef bool (*celix_arrayList_equals_fp)(celix_array_list_entry_t, celix_array_list_entry_t);
+
 
 celix_array_list_t* celix_arrayList_create();
 
@@ -39,7 +52,7 @@ celix_array_list_t* celix_arrayList_createWithEquals(celix_arrayList_equals_fp e
 
 void celix_arrayList_destroy(celix_array_list_t *list);
 
-size_t celix_arrayList_size(const celix_array_list_t *list);
+int celix_arrayList_size(const celix_array_list_t *list);
 
 void* celix_arrayList_get(const celix_array_list_t *list, int index);
 
@@ -66,13 +79,25 @@ void celix_arrayList_addBool(celix_array_list_t *list, bool val);
 void celix_arrayList_addSize(celix_array_list_t *list, size_t val);
 
 int celix_arrayList_indexOf(celix_array_list_t *list, celix_array_list_entry_t entry);
-void celix_arrayList_remove(celix_array_list_t *list, int index);
+void celix_arrayList_removeAt(celix_array_list_t *list, int index);
+
+void celix_arrayList_clear(celix_array_list_t *list);
 
 /**
  * Remove entry from array list. To use this first memset the entry to null to ensure it completely initialized or
  * ensure that the array list is created with a custom equals which matches the used entry.
  */
 void celix_arrayList_removeEntry(celix_array_list_t *list, celix_array_list_entry_t entry);
+
+void celix_arrayList_remove(celix_array_list_t *list, void *ptr);
+void celix_arrayList_removeInt(celix_array_list_t *list, int val);
+void celix_arrayList_removeLong(celix_array_list_t *list, long val);
+void celix_arrayList_removeUInt(celix_array_list_t *list, unsigned int val);
+void celix_arrayList_removeULong(celix_array_list_t *list, unsigned long val);
+void celix_arrayList_removeFloat(celix_array_list_t *list, float val);
+void celix_arrayList_removeDouble(celix_array_list_t *list, double val);
+void celix_arrayList_removeBool(celix_array_list_t *list, bool val);
+void celix_arrayList_removeSize(celix_array_list_t *list, size_t val);
 
 #ifdef __cplusplus
 }

@@ -278,7 +278,7 @@ namespace celix {
 
         void useBundles(const std::function<void(const celix::Bundle &bnd)> &use) noexcept;
 
-        bool useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept;
+        void useBundle(long bundleId, const std::function<void(const celix::Bundle &bnd)> &use) noexcept;
     private:
         struct Impl;
         std::unique_ptr<celix::BundleContext::Impl> pimpl{nullptr};

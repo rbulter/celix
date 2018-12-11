@@ -16,171 +16,98 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * psa_activator.c
- *
- *  \date       Sep 30, 2011
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright	Apache License, Version 2.0
- */
+
 
 #include <stdlib.h>
 
-#include "bundle_activator.h"
-#include "service_tracker.h"
+#include "celix_api.h"
+#include "pubsub_serializer.h"
+#include "log_helper.h"
 
-#include "pubsub_admin_impl.h"
+#include "pubsub_admin.h"
+#include "pubsub_zmq_admin.h"
+#include "../../../shell/shell/include/command.h"
 
+typedef struct psa_zmq_activator {
+	log_helper_t *logHelper;
 
-struct activator {
-	pubsub_admin_pt admin;
-	pubsub_admin_service_pt adminService;
-	service_registration_pt registration;
-	service_tracker_pt serializerTracker;
-};
+	pubsub_zmq_admin_t *admin;
 
+	long serializersTrackerId;
 
-static celix_status_t shellCommand(void *handle, char * commandLine, FILE *outStream, FILE *errorStream) {
-    struct activator *act= (struct activator*)handle;
-    if (act->admin->externalPublications && !hashMap_isEmpty(act->admin->externalPublications)) {
-        fprintf(outStream, "External Publications:\n");
-        for(hash_map_iterator_t iter = hashMapIterator_construct(act->admin->externalPublications); hashMapIterator_hasNext(&iter);) {
-            const char* key = (const char*)hashMapIterator_nextKey(&iter);
-            fprintf(outStream, "    %s\n", key);
-        }
-    }
-    if (act->admin->localPublications && !hashMap_isEmpty(act->admin->localPublications)) {
-        fprintf(outStream, "Local Publications:\n");
-        for (hash_map_iterator_t iter = hashMapIterator_construct(
-                act->admin->localPublications); hashMapIterator_hasNext(&iter);) {
-            const char *key = (const char *) hashMapIterator_nextKey(&iter);
-            fprintf(outStream, "    %s\n", key);
-        }
-    }
-    if (act->admin->subscriptions && !hashMap_isEmpty(act->admin->subscriptions)) {
-        fprintf(outStream, "Active Subscriptions:\n");
-        for (hash_map_iterator_t iter = hashMapIterator_construct(
-                act->admin->subscriptions); hashMapIterator_hasNext(&iter);) {
-            const char *key = (const char *) hashMapIterator_nextKey(&iter);
-            fprintf(outStream, "    %s\n", key);
-        }
-    }
-    if (act->admin->pendingSubscriptions && !hashMap_isEmpty(act->admin->pendingSubscriptions)) {
-        fprintf(outStream, "Pending Subscriptions:\n");
-        for (hash_map_iterator_t iter = hashMapIterator_construct(
-                act->admin->pendingSubscriptions); hashMapIterator_hasNext(&iter);) {
-            const char *key = (const char *) hashMapIterator_nextKey(&iter);
-            fprintf(outStream, "    %s\n", key);
-        }
-    }
-    return CELIX_SUCCESS;
-}
+	pubsub_admin_service_t adminService;
+	long adminSvcId;
 
-celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator;
+	command_service_t cmdSvc;
+	long cmdSvcId;
+} psa_zmq_activator_t;
 
-	activator = calloc(1, sizeof(*activator));
-	if (!activator) {
-		status = CELIX_ENOMEM;
-	}
-	else{
-		*userData = activator;
+int psa_zmq_start(psa_zmq_activator_t *act, celix_bundle_context_t *ctx) {
+	act->adminSvcId = -1L;
+	act->cmdSvcId = -1L;
+	act->serializersTrackerId = -1L;
 
-		status = pubsubAdmin_create(context, &(activator->admin));
+	logHelper_create(ctx, &act->logHelper);
+	logHelper_start(act->logHelper);
 
-		if(status == CELIX_SUCCESS){
-			service_tracker_customizer_pt customizer = NULL;
-			status = serviceTrackerCustomizer_create(activator->admin,
-					NULL,
-					pubsubAdmin_serializerAdded,
-					NULL,
-					pubsubAdmin_serializerRemoved,
-					&customizer);
-			if(status == CELIX_SUCCESS){
-				status = serviceTracker_create(context, PUBSUB_SERIALIZER_SERVICE, customizer, &(activator->serializerTracker));
-                if (status == CELIX_SUCCESS) {
-                    properties_pt shellProps = properties_create();
-                    properties_set(shellProps, OSGI_SHELL_COMMAND_NAME, "psa_zmq_info");
-                    properties_set(shellProps, OSGI_SHELL_COMMAND_USAGE, "psa_zmq_info");
-                    properties_set(shellProps, OSGI_SHELL_COMMAND_DESCRIPTION, "psa_zmq_info: Overview of PubSub ZMQ Admin");
-                    activator->admin->shellCmdService.handle = activator;
-                    activator->admin->shellCmdService.executeCommand = shellCommand;
-                    bundleContext_registerService(context, OSGI_SHELL_COMMAND_SERVICE_NAME, &activator->admin->shellCmdService, shellProps, &activator->admin->shellCmdReg);
-                } else {
-					serviceTrackerCustomizer_destroy(customizer);
-					pubsubAdmin_destroy(activator->admin);
-				}
-			}
-			else{
-				pubsubAdmin_destroy(activator->admin);
-			}
-		}
-	}
-	return status;
-}
+	act->admin = pubsub_zmqAdmin_create(ctx, act->logHelper);
+	celix_status_t status = act->admin != NULL ? CELIX_SUCCESS : CELIX_BUNDLE_EXCEPTION;
 
-celix_status_t bundleActivator_start(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
-	pubsub_admin_service_pt pubsubAdminSvc = calloc(1, sizeof(*pubsubAdminSvc));
-
-	if (!pubsubAdminSvc) {
-		status = CELIX_ENOMEM;
-	}
-	else{
-		pubsubAdminSvc->admin = activator->admin;
-
-		pubsubAdminSvc->addPublication = pubsubAdmin_addPublication;
-		pubsubAdminSvc->removePublication = pubsubAdmin_removePublication;
-
-		pubsubAdminSvc->addSubscription = pubsubAdmin_addSubscription;
-		pubsubAdminSvc->removeSubscription = pubsubAdmin_removeSubscription;
-
-		pubsubAdminSvc->closeAllPublications = pubsubAdmin_closeAllPublications;
-		pubsubAdminSvc->closeAllSubscriptions = pubsubAdmin_closeAllSubscriptions;
-
-		pubsubAdminSvc->matchEndpoint = pubsubAdmin_matchEndpoint;
-
-		activator->adminService = pubsubAdminSvc;
-
-		status = bundleContext_registerService(context, PUBSUB_ADMIN_SERVICE, pubsubAdminSvc, NULL, &activator->registration);
-
-		status += serviceTracker_open(activator->serializerTracker);
-
+	//track serializers
+	if (status == CELIX_SUCCESS) {
+		celix_service_tracking_options_t opts = CELIX_EMPTY_SERVICE_TRACKING_OPTIONS;
+		opts.filter.serviceName = PUBSUB_SERIALIZER_SERVICE_NAME;
+		opts.filter.ignoreServiceLanguage = true;
+		opts.callbackHandle = act->admin;
+		opts.addWithProperties = pubsub_zmqAdmin_addSerializerSvc;
+		opts.removeWithProperties = pubsub_zmqAdmin_removeSerializerSvc;
+		act->serializersTrackerId = celix_bundleContext_trackServicesWithOptions(ctx, &opts);
 	}
 
+	//register pubsub admin service
+	if (status == CELIX_SUCCESS) {
+		pubsub_admin_service_t *psaSvc = &act->adminService;
+		psaSvc->handle = act->admin;
+		psaSvc->matchPublisher = pubsub_zmqAdmin_matchPublisher;
+		psaSvc->matchSubscriber = pubsub_zmqAdmin_matchSubscriber;
+		psaSvc->matchEndpoint = pubsub_zmqAdmin_matchEndpoint;
+		psaSvc->setupTopicSender = pubsub_zmqAdmin_setupTopicSender;
+		psaSvc->teardownTopicSender = pubsub_zmqAdmin_teardownTopicSender;
+		psaSvc->setupTopicReceiver = pubsub_zmqAdmin_setupTopicReceiver;
+		psaSvc->teardownTopicReceiver = pubsub_zmqAdmin_teardownTopicReceiver;
+		psaSvc->addEndpoint = pubsub_zmqAdmin_addEndpoint;
+		psaSvc->removeEndpoint = pubsub_zmqAdmin_removeEndpoint;
+
+		celix_properties_t *props = celix_properties_create();
+		celix_properties_set(props, PUBSUB_ADMIN_SERVICE_TYPE, PUBSUB_ZMQ_ADMIN_TYPE);
+
+		act->adminSvcId = celix_bundleContext_registerService(ctx, psaSvc, PUBSUB_ADMIN_SERVICE_NAME, props);
+	}
+
+	//register shell command service
+	{
+		act->cmdSvc.handle = act->admin;
+		act->cmdSvc.executeCommand = pubsub_zmqAdmin_executeCommand;
+		celix_properties_t *props = celix_properties_create();
+		celix_properties_set(props, OSGI_SHELL_COMMAND_NAME, "psa_zmq");
+		celix_properties_set(props, OSGI_SHELL_COMMAND_USAGE, "psa_zmq");
+		celix_properties_set(props, OSGI_SHELL_COMMAND_DESCRIPTION, "Print the information about the TopicSender and TopicReceivers for the ZMQ PSA");
+		act->cmdSvcId = celix_bundleContext_registerService(ctx, &act->cmdSvc, OSGI_SHELL_COMMAND_SERVICE_NAME, props);
+	}
 
 	return status;
 }
 
-celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
+int psa_zmq_stop(psa_zmq_activator_t *act, celix_bundle_context_t *ctx) {
+	celix_bundleContext_unregisterService(ctx, act->adminSvcId);
+	celix_bundleContext_unregisterService(ctx, act->cmdSvcId);
+	celix_bundleContext_stopTracker(ctx, act->serializersTrackerId);
+	pubsub_zmqAdmin_destroy(act->admin);
 
-	status += serviceTracker_close(activator->serializerTracker);
-	serviceRegistration_unregister(activator->admin->shellCmdReg);
-	activator->admin->shellCmdReg = NULL;
-	status += serviceRegistration_unregister(activator->registration);
+	logHelper_stop(act->logHelper);
+	logHelper_destroy(&act->logHelper);
 
-	activator->registration = NULL;
-
-	free(activator->adminService);
-	activator->adminService = NULL;
-
-	return status;
+	return CELIX_SUCCESS;
 }
 
-celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
-
-	serviceTracker_destroy(activator->serializerTracker);
-	pubsubAdmin_destroy(activator->admin);
-	activator->admin = NULL;
-	free(activator);
-
-	return status;
-}
-
-
+CELIX_GEN_BUNDLE_ACTIVATOR(psa_zmq_activator_t, psa_zmq_start, psa_zmq_stop);

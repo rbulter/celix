@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 #define OSGI_FRAMEWORK_OBJECTCLASS "objectClass"
 #define OSGI_FRAMEWORK_SERVICE_ID "service.id"
 #define OSGI_FRAMEWORK_SERVICE_PID "service.pid"
@@ -33,36 +35,33 @@ extern "C" {
 #define CELIX_FRAMEWORK_SERVICE_LANGUAGE "service.lang"
 #define CELIX_FRAMEWORK_SERVICE_C_LANGUAGE "C"
 #define CELIX_FRAMEWORK_SERVICE_CXX_LANGUAGE "C++"
-#define CELIX_FRAMEWORK_SERVICE_SHARED_LANGUAGE "shared" //e.g. marker services
 
 #define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR "Bundle-Activator"
 
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_CREATE "celix_bundleActivator_create"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_START "celix_bundleActivator_start"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_STOP "celix_bundleActivator_stop"
-#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_DESTROY "celix_bundleActivator_destroy"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_CREATE      "celix_bundleActivator_create"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_START       "celix_bundleActivator_start"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_STOP        "celix_bundleActivator_stop"
+#define OSGI_FRAMEWORK_BUNDLE_ACTIVATOR_DESTROY     "celix_bundleActivator_destroy"
 
-#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_CREATE "bundleActivator_create"
-#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_START "bundleActivator_start"
-#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_STOP "bundleActivator_stop"
-#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_DESTROY "bundleActivator_destroy"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_CREATE   "bundleActivator_create"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_START    "bundleActivator_start"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_STOP     "bundleActivator_stop"
+#define OSGI_FRAMEWORK_DEPRECATED_BUNDLE_ACTIVATOR_DESTROY  "bundleActivator_destroy"
 
+#define OSGI_FRAMEWORK_BUNDLE_SYMBOLICNAME  "Bundle-SymbolicName"
+#define OSGI_FRAMEWORK_BUNDLE_VERSION       "Bundle-Version"
+#define OSGI_FRAMEWORK_PRIVATE_LIBRARY      "Private-Library"
+#define OSGI_FRAMEWORK_EXPORT_LIBRARY       "Export-Library"
+#define OSGI_FRAMEWORK_IMPORT_LIBRARY       "Import-Library"
 
-#define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_CREATE "dm_create"
-#define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_INIT "dm_init"
-#define OSGI_FRAMEWORK_BUNDLE_DM_ACTIVATOR_DESTROY "dm_destroy"
+#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE                "org.osgi.framework.storage"
+#define OSGI_FRAMEWORK_STORAGE_USE_TMP_DIR              "org.osgi.framework.storage.use.tmp.dir"
+#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_NAME     "org.osgi.framework.storage.clean"
+#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_DEFAULT  true
+#define OSGI_FRAMEWORK_FRAMEWORK_UUID                   "org.osgi.framework.uuid"
 
-
-#define OSGI_FRAMEWORK_BUNDLE_SYMBOLICNAME "Bundle-SymbolicName"
-#define OSGI_FRAMEWORK_BUNDLE_VERSION "Bundle-Version"
-#define OSGI_FRAMEWORK_PRIVATE_LIBRARY "Private-Library"
-#define OSGI_FRAMEWORK_EXPORT_LIBRARY "Export-Library"
-#define OSGI_FRAMEWORK_IMPORT_LIBRARY "Import-Library"
-
-#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE "org.osgi.framework.storage"
-#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN "org.osgi.framework.storage.clean"
-#define OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT "onFirstInit"
-#define OSGI_FRAMEWORK_FRAMEWORK_UUID "org.osgi.framework.uuid"
+#define CELIX_BUNDLES_PATH_NAME     "CELIX_BUNDLES_PATH"
+#define CELIX_BUNDLES_PATH_DEFAULT  "bundles"
 
 #define CELIX_AUTO_START_0 "CELIX_AUTO_START_0"
 #define CELIX_AUTO_START_1 "CELIX_AUTO_START_1"
@@ -70,7 +69,6 @@ extern "C" {
 #define CELIX_AUTO_START_3 "CELIX_AUTO_START_3"
 #define CELIX_AUTO_START_4 "CELIX_AUTO_START_4"
 #define CELIX_AUTO_START_5 "CELIX_AUTO_START_5"
-
 
 
 #ifdef __cplusplus

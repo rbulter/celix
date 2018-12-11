@@ -21,19 +21,20 @@ find_package(Jansson REQUIRED)
 add_celix_bundle(celix_pubsub_discovery_etcd
     BUNDLE_SYMBOLICNAME "apache_celix_pubsub_discovery_etcd"
     VERSION "1.0.0"
+	GROUP "Celix/PubSub"
     SOURCES
         src/psd_activator.c
         src/pubsub_discovery_impl.c
-        src/etcd_common.c
-        src/etcd_watcher.c
-        src/etcd_writer.c
 )
 target_include_directories(celix_pubsub_discovery_etcd PRIVATE src)
 target_include_directories(celix_pubsub_discovery_etcd SYSTEM PRIVATE 
 	${CURL_INCLUDE_DIR}
 	${JANSSON_INCLUDE_DIR}
 )
-target_link_libraries(celix_pubsub_discovery_etcd PRIVATE Celix::pubsub_spi Celix::framework Celix::etcdlib_static ${CURL_LIBRARIES} ${JANSSON_LIBRARIES})
+target_link_libraries(celix_pubsub_discovery_etcd PRIVATE
+		Celix::pubsub_spi Celix::framework Celix::etcdlib_static
+		Celix::shell_api Celix::log_helper
+		${CURL_LIBRARIES} ${JANSSON_LIBRARIES})
 
 install_celix_bundle(celix_pubsub_discovery_etcd EXPORT celix COMPONENT pubsub)
 

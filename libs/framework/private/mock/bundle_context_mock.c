@@ -160,7 +160,7 @@ celix_status_t bundleContext_getBundleById(bundle_context_pt context, long id, b
 }
 
 
-celix_status_t bundleContext_addServiceListener(bundle_context_pt context, service_listener_pt listener, const char * filter) {
+celix_status_t bundleContext_addServiceListener(bundle_context_pt context, celix_service_listener_t *listener, const char * filter) {
 	mock_c()->actualCall("bundleContext_addServiceListener")
 		->withPointerParameters("context", context)
 		->withPointerParameters("listener", listener)
@@ -168,7 +168,7 @@ celix_status_t bundleContext_addServiceListener(bundle_context_pt context, servi
 	return mock_c()->returnValue().value.intValue;
 }
 
-celix_status_t bundleContext_removeServiceListener(bundle_context_pt context, service_listener_pt listener) {
+celix_status_t bundleContext_removeServiceListener(bundle_context_pt context, celix_service_listener_t *listener) {
 	mock_c()->actualCall("bundleContext_removeServiceListener")
 		->withPointerParameters("context", context)
 		->withPointerParameters("listener", listener);
@@ -272,7 +272,7 @@ void celix_bundleContext_useBundles(
 }
 
 
-bool celix_bundleContext_useBundle(
+void celix_bundleContext_useBundle(
 		bundle_context_t *ctx,
 		long bundleId,
 		void *callbackHandle,
@@ -282,7 +282,6 @@ bool celix_bundleContext_useBundle(
 			->withLongIntParameters("bundleId", bundleId)
 			->withPointerParameters("callbackHandle", callbackHandle)
 			->withPointerParameters("use", use);
-	return mock_c()->returnValue().value.boolValue;
 }
 
 void celix_bundleContext_stopTracker(bundle_context_t *ctx, long trackerId) {

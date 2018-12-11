@@ -187,7 +187,7 @@ celix_status_t fw_getBundleServicesInUse(framework_pt framework, bundle_pt bundl
 }
 
 
-void fw_addServiceListener(framework_pt framework, bundle_pt bundle, service_listener_pt listener, const char* filter) {
+void fw_addServiceListener(framework_pt framework, bundle_pt bundle, celix_service_listener_t *listener, const char* filter) {
 	mock_c()->actualCall("fw_addServiceListener")
 		->withPointerParameters("framework", framework)
 		->withPointerParameters("bundle", bundle)
@@ -195,7 +195,7 @@ void fw_addServiceListener(framework_pt framework, bundle_pt bundle, service_lis
 		->withStringParameters("filter", filter);
 }
 
-void fw_removeServiceListener(framework_pt framework, bundle_pt bundle, service_listener_pt listener) {
+void fw_removeServiceListener(framework_pt framework, bundle_pt bundle, celix_service_listener_t *listener) {
 	mock_c()->actualCall("fw_removeServiceListener")
 		->withPointerParameters("framework", framework)
 		->withPointerParameters("bundle", bundle)
@@ -235,7 +235,7 @@ celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bund
         return mock_c()->returnValue().value.intValue;
 }
 
-void fw_serviceChanged(framework_pt framework, service_event_type_e eventType, service_registration_pt registration, properties_pt oldprops) {
+void fw_serviceChanged(framework_pt framework, celix_service_event_type_t eventType, service_registration_pt registration, properties_pt oldprops) {
 	mock_c()->actualCall("fw_serviceChanged");
 }
 
@@ -314,20 +314,21 @@ celix_status_t framework_getFrameworkBundle(framework_pt framework, bundle_pt *b
 	return mock_c()->returnValue().value.intValue;
 }
 
-void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+void celix_framework_useBundles(framework_t *fw, bool includeFrameworkBundle, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
 	mock_c()->actualCall("celix_framework_useBundles")
 			->withPointerParameters("fw", fw)
+			->withBoolParameters("includeFrameworkBundle", includeFrameworkBundle)
 			->withPointerParameters("callbackHandle", callbackHandle)
 			->withPointerParameters("use", use);
 }
 
-bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
+void celix_framework_useBundle(framework_t *fw, bool onlyActive, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd)) {
 	mock_c()->actualCall("celix_framework_useBundle")
 			->withPointerParameters("fw", fw)
+			->withBoolParameters("onlyActive", onlyActive)
 			->withLongIntParameters("bundleId", bundleId)
 			->withPointerParameters("callbackHandle", callbackHandle)
 			->withPointerParameters("use", use);
-    return mock_c()->returnValue().value.boolValue;
 }
 
 service_registration_t* celix_framework_registerServiceFactory(framework_t *fw , const celix_bundle_t *bnd, const char* serviceName, celix_service_factory_t *factory, celix_properties_t *properties) {

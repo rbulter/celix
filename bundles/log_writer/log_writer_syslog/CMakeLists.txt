@@ -22,6 +22,7 @@ if (LOG_WRITER_SYSLOG)
         VERSION 1.1.0
         SYMBOLIC_NAME "apache_celix_log_writer_syslog"
         NAME "Apache Celix Log Writer Syslog"
+        GROUP "Celix/Logging"
         SOURCES
             private/src/log_writer_syslog
     )
@@ -37,7 +38,7 @@ if (LOG_WRITER_SYSLOG)
         endif()
     endif()
 
-    target_link_libraries(log_writer_syslog PRIVATE Celix::log_service_ap)
+    target_link_libraries(log_writer_syslog PRIVATE Celix::log_service_api)
 
     install_celix_bundle(log_writer_syslog EXPORT celix)
     add_library(Celix::log_writer_syslog ALIAS log_writer_syslog)

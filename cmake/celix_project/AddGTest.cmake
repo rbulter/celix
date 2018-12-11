@@ -30,7 +30,7 @@ file(MAKE_DIRECTORY ${source_dir}/googletest/include)
 add_library(gtest IMPORTED STATIC GLOBAL)
 add_dependencies(gtest googletest_project)
 set_target_properties(gtest PROPERTIES
-        IMPORTED_LOCATION "${binary_dir}/googlemock/gtest/libgtest.a"
+        IMPORTED_LOCATION "${binary_dir}/lib/libgtest.a"
         INTERFACE_INCLUDE_DIRECTORIES "${source_dir}/googletest/include"
 )
 
@@ -38,6 +38,6 @@ file(MAKE_DIRECTORY ${source_dir}/googlemock/include)
 add_library(gmock IMPORTED STATIC GLOBAL)
 add_dependencies(gmock googletest_project)
 set_target_properties(gmock PROPERTIES
-        IMPORTED_LOCATION "${binary_dir}/googlemock/libgmock.a"
+        IMPORTED_LOCATION "${binary_dir}/lib/libgmock.a"
         INTERFACE_INCLUDE_DIRECTORIES "${source_dir}/googlemock/include"
 )

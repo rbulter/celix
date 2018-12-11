@@ -28,6 +28,7 @@
 #include "celix_api.h"
 #include "celix_framework_factory.h"
 #include "celix_service_factory.h"
+#include "service_tracker_private.h"
 
 
 #include <CppUTest/TestHarness.h>
@@ -346,13 +347,13 @@ TEST(CelixBundleContextServicesTests, servicesTrackerTestWithProperties) {
     int count = 0;
     auto add = [](void *handle, void *svc, const properties_t *props) {
         CHECK(svc != NULL);
-        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE));
+        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE, NULL));
         int *c = static_cast<int*>(handle);
         *c += 1;
     };
     auto remove = [](void *handle, void *svc, const properties_t *props) {
         CHECK(svc != NULL);
-        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE));
+        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE, NULL));
         int *c = static_cast<int*>(handle);
         *c -= 1;
     };
@@ -384,14 +385,14 @@ TEST(CelixBundleContextServicesTests, servicesTrackerTestWithOwner) {
     int count = 0;
     auto add = [](void *handle, void *svc, const properties_t *props, const bundle_t *svcOwner) {
         CHECK(svc != NULL);
-        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE));
+        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE, NULL));
         CHECK(celix_bundle_getId(svcOwner) >= 0);
         int *c = static_cast<int*>(handle);
         *c += 1;
     };
     auto remove = [](void *handle, void *svc, const properties_t *props, const bundle_t *svcOwner) {
         CHECK(svc != NULL);
-        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE));
+        STRCMP_EQUAL("C", celix_properties_get(props, CELIX_FRAMEWORK_SERVICE_LANGUAGE, NULL));
         CHECK(celix_bundle_getId(svcOwner) >= 0);
         int *c = static_cast<int*>(handle);
         *c -= 1;
@@ -683,10 +684,17 @@ TEST(CelixBundleContextServicesTests, trackServiceTrackerTest) {
     CHECK_TRUE(tracker3 >= 0);
     CHECK_EQUAL(2, count);
 
+    long tracker4 = celix_bundleContext_trackServices(ctx, "no-match", NULL, NULL, NULL);
+    CHECK_TRUE(tracker4 >= 0);
+    CHECK_EQUAL(2, count);
+
     celix_bundleContext_stopTracker(ctx, tracker2);
+    celix_serviceTracker_syncForContext(ctx); //service tracker shutdown on separate track -> need sync
     CHECK_EQUAL(1, count);
     celix_bundleContext_stopTracker(ctx, tracker3);
+    celix_serviceTracker_syncForContext(ctx); //service tracker shutdown on separate track -> need sync
     CHECK_EQUAL(0, count);
 
     celix_bundleContext_stopTracker(ctx, trackerId);
+    celix_bundleContext_stopTracker(ctx, tracker4);
 }

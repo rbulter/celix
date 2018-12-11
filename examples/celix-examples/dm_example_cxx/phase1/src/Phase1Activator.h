@@ -20,17 +20,29 @@
 #ifndef CELIX_PHASE1ACTIVATOR_H
 #define CELIX_PHASE1ACTIVATOR_H
 
+#include "celix/dm/DmActivator.h"
 #include "celix/IBundleActivator.h"
 #include "command.h"
+#include "Phase1Cmp.h"
 
+struct DummyService {
+    void *handle;
+};
 
 class Phase1Activator : public celix::IBundleActivator {
 public:
-    virtual ~Phase1Activator(){}
-    celix_status_t start(celix::BundleContext& _ctx) override;
-    celix_status_t stop(celix::BundleContext& _ctx) override;
+    virtual ~Phase1Activator() {}
+
+    celix_status_t start(celix::BundleContext &_ctx) override;
+
+    celix_status_t stop(celix::BundleContext &_ctx) override;
+
 private:
     command_service_t cmd {nullptr, nullptr};
+    command_service_t addCmd {nullptr, nullptr};
+    command_service_t removeCmd {nullptr, nullptr};
+    Component<Phase1Cmp> *phase1cmp{nullptr};
+    DummyService *dummySvc{new DummyService};
 };
 
 #endif //CELIX_PHASE1ACTIVATOR_H

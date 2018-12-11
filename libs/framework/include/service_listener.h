@@ -16,32 +16,20 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/**
- *
- * @defgroup ServiceListener Service Listener
- * @ingroup framework
- * @{
- *
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \date      	January 11, 2012
- *  \copyright	Apache License, Version 2.0
- */
+
 #ifndef SERVICE_LISTENER_H_
 #define SERVICE_LISTENER_H_
 
-typedef struct serviceListener * service_listener_pt;
 
-#include "celix_errno.h"
-#include "service_event.h"
+#include "celix_service_listener.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct serviceListener {
-	void *handle;
+//Deprecated use celix_service_listener_t instead
+typedef struct celix_service_listener *service_listener_pt;
 
-	celix_status_t (*serviceChanged)(void *listener, service_event_pt event);
-};
 
 #ifdef __cplusplus
 }
@@ -49,7 +37,3 @@ struct serviceListener {
 
 
 #endif /* SERVICE_LISTENER_H_ */
-
-/**
- * @}
- */

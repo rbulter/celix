@@ -26,7 +26,7 @@
 
 
 
-struct bundle {
+struct celix_bundle {
 	bundle_context_pt context;
 	struct celix_bundle_activator *activator;
 	bundle_state_e state;
@@ -35,11 +35,7 @@ struct bundle {
 	array_list_pt modules;
 	manifest_pt manifest;
 
-	celix_thread_mutex_t lock;
-	int lockCount;
-	celix_thread_t lockThread;
-
-	struct framework * framework;
+	celix_framework_t *framework;
 };
 
 #endif /* BUNDLE_PRIVATE_H_ */

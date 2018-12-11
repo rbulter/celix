@@ -16,20 +16,11 @@
  *specific language governing permissions and limitations
  *under the License.
  */
-/*
- * service_reference.h
- *
- *  \date       Jul 20, 2010
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \copyright	Apache License, Version 2.0
- */
 
 #ifndef SERVICE_REFERENCE_H_
 #define SERVICE_REFERENCE_H_
 
-typedef struct serviceReference * service_reference_pt;
-typedef struct serviceReference service_reference_t;
-
+#include "celix_types.h"
 #include "celixbool.h"
 #include "array_list.h"
 #include "service_registration.h"
@@ -40,10 +31,10 @@ typedef struct serviceReference service_reference_t;
 extern "C" {
 #endif
 
-FRAMEWORK_EXPORT celix_status_t serviceReference_getBundle(service_reference_pt reference, bundle_pt *bundle);
+FRAMEWORK_EXPORT celix_status_t serviceReference_getBundle(service_reference_pt reference, celix_bundle_t **bundle);
 
 FRAMEWORK_EXPORT bool
-serviceReference_isAssignableTo(service_reference_pt reference, bundle_pt requester, const char *serviceName);
+serviceReference_isAssignableTo(service_reference_pt reference, celix_bundle_t *requester, const char *serviceName);
 
 FRAMEWORK_EXPORT celix_status_t
 serviceReference_getProperty(service_reference_pt reference, const char *key, const char **value);
@@ -67,7 +58,7 @@ FRAMEWORK_EXPORT int serviceReference_equals2(const void *reference1, const void
 FRAMEWORK_EXPORT celix_status_t
 serviceReference_compareTo(service_reference_pt reference, service_reference_pt compareTo, int *compare);
 
-FRAMEWORK_EXPORT celix_status_t serviceReference_getUsingBundles(service_reference_pt ref, array_list_pt *out);
+FRAMEWORK_EXPORT celix_status_t serviceReference_getUsingBundles(service_reference_pt ref, celix_array_list_t **out);
 
 #ifdef __cplusplus
 }

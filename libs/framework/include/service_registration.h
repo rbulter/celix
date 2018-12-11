@@ -27,7 +27,6 @@ typedef struct serviceRegistration * service_registration_pt;
 typedef struct serviceRegistration service_registration_t;
 
 
-#include "service_registry.h"
 #include "array_list.h"
 #include "bundle.h"
 #include "framework_exports.h"
@@ -39,10 +38,10 @@ extern "C" {
 FRAMEWORK_EXPORT celix_status_t serviceRegistration_unregister(service_registration_t *registration);
 
 FRAMEWORK_EXPORT celix_status_t
-serviceRegistration_getProperties(service_registration_t *registration, properties_pt *properties);
+serviceRegistration_getProperties(service_registration_t *registration, celix_properties_t **properties);
 
 FRAMEWORK_EXPORT celix_status_t
-serviceRegistration_setProperties(service_registration_t *registration, properties_pt properties);
+serviceRegistration_setProperties(service_registration_t *registration, celix_properties_t *properties);
 
 FRAMEWORK_EXPORT celix_status_t
 serviceRegistration_getServiceName(service_registration_t *registration, const char **serviceName);

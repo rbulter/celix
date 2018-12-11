@@ -25,8 +25,7 @@ class BundleContextTest : public ::testing::Test {
 public:
     BundleContextTest() {
         celix::Properties config{};
-        config["org.osgi.framework.storage.clean"] = "onFirstInit";
-        config["org.osgi.framework.storage"] = "test-cache"; //TODO tmp dir?
+        config["org.osgi.framework.storage"] = "test-cache";
         this->fw_ptr = std::unique_ptr<celix::Framework>{celix::FrameworkFactory::newFramework(std::move(config))};
     }
 
@@ -244,10 +243,10 @@ TEST_F(BundleContextTest, useBundlesTest) {
     };
 
     ctx.useBundles(use);
-    EXPECT_EQ(1, count);
+    EXPECT_EQ(0, count); //note framework bundle is by default not used in the useBundles callback
 
     count = 0;
     ctx.installBundle("bundle1.zip", true);
     ctx.useBundles(use);
-    EXPECT_EQ(2, count);
+    EXPECT_EQ(1, count);
 };

@@ -31,6 +31,8 @@
 #include "properties.h"
 #include "celix_properties.h"
 #include "utils.h"
+#include <errno.h>
+
 
 #define MALLOC_BLOCK_SIZE		5
 
@@ -71,11 +73,11 @@ celix_status_t properties_copy(properties_pt properties, properties_pt *out) {
 }
 
 const char* properties_get(properties_pt properties, const char* key) {
-	return celix_properties_get(properties, key);
+	return celix_properties_get(properties, key, NULL);
 }
 
 const char* properties_getWithDefault(properties_pt properties, const char* key, const char* defaultValue) {
-	return celix_properties_getWithDefault(properties, key, defaultValue);
+	return celix_properties_get(properties, key, defaultValue);
 }
 
 void properties_set(properties_pt properties, const char* key, const char* value) {
@@ -218,14 +220,16 @@ celix_properties_t* celix_properties_create(void) {
 }
 
 void celix_properties_destroy(celix_properties_t *properties) {
-	hash_map_iterator_pt iter = hashMapIterator_create(properties);
-	while (hashMapIterator_hasNext(iter)) {
-		hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
-		free(hashMapEntry_getKey(entry));
-		free(hashMapEntry_getValue(entry));
+	if (properties != NULL) {
+		hash_map_iterator_pt iter = hashMapIterator_create(properties);
+		while (hashMapIterator_hasNext(iter)) {
+			hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
+			free(hashMapEntry_getKey(entry));
+			free(hashMapEntry_getValue(entry));
+		}
+		hashMapIterator_destroy(iter);
+		hashMap_destroy(properties, false, false);
 	}
-	hashMapIterator_destroy(iter);
-	hashMap_destroy(properties, false, false);
 }
 
 celix_properties_t* celix_properties_load(const char *filename) {
@@ -340,10 +344,10 @@ void celix_properties_store(celix_properties_t *properties, const char *filename
 	}
 }
 
-celix_properties_t* celix_properties_copy(celix_properties_t *properties) {
+celix_properties_t* celix_properties_copy(const celix_properties_t *properties) {
 	celix_properties_t *copy = celix_properties_create();
 	if (copy != NULL) {
-		hash_map_iterator_t iter = hashMapIterator_construct(properties);
+		hash_map_iterator_t iter = hashMapIterator_construct((hash_map_t*)properties);
 		while (hashMapIterator_hasNext(&iter)) {
 			hash_map_entry_pt entry = hashMapIterator_nextEntry(&iter);
 			char *key = hashMapEntry_getKey(entry);
@@ -354,26 +358,28 @@ celix_properties_t* celix_properties_copy(celix_properties_t *properties) {
 	return copy;
 }
 
-const char* celix_properties_get(const celix_properties_t *properties, const char *key) {
-	return hashMap_get((hash_map_t*)properties, (void*)key);
-}
-
-const char* celix_properties_getWithDefault(const celix_properties_t *properties, const char *key, const char *defaultValue) {
-	const char* value = celix_properties_get(properties, key);
+const char* celix_properties_get(const celix_properties_t *properties, const char *key, const char *defaultValue) {
+	const char *value = NULL;
+	if (properties != NULL) {
+		value = hashMap_get((hash_map_t *) properties, (void *) key);
+	}
 	return value == NULL ? defaultValue : value;
 }
 
 void celix_properties_set(celix_properties_t *properties, const char *key, const char *value) {
-	hash_map_entry_pt entry = hashMap_getEntry(properties, key);
-	char* oldValue = NULL;
-	if (entry != NULL) {
-		char* oldKey = hashMapEntry_getKey(entry);
-		oldValue = hashMapEntry_getValue(entry);
-		hashMap_put(properties, oldKey, strndup(value, 1024*10));
-	} else {
-		hashMap_put(properties, strndup(key, 1024*10), strndup(value, 1024*10));
+	if (properties != NULL) {
+		hash_map_entry_pt entry = hashMap_getEntry(properties, key);
+		char *oldVal = NULL;
+		char *newVal = value == NULL ? NULL : strndup(value, 1024 * 1024);
+		if (entry != NULL) {
+			char *oldKey = hashMapEntry_getKey(entry);
+			oldVal = hashMapEntry_getValue(entry);
+			hashMap_put(properties, oldKey, newVal);
+		} else {
+			hashMap_put(properties, strndup(key, 1024 * 1024), newVal);
+		}
+		free(oldVal);
 	}
-	free(oldValue);
 }
 
 void celix_properties_unset(celix_properties_t *properties, const char *key) {
@@ -383,23 +389,82 @@ void celix_properties_unset(celix_properties_t *properties, const char *key) {
 
 long celix_properties_getAsLong(const celix_properties_t *props, const char *key, long defaultValue) {
 	long result = defaultValue;
-	const char *val = celix_properties_get(props, key);
+	const char *val = celix_properties_get(props, key, NULL);
 	if (val != NULL) {
-		long r = strtol(val, NULL, 10);
-		if (errno == 0) {
-			result = r;
-		}
+		char *enptr = NULL;
 		errno = 0;
+		long r = strtol(val, &enptr, 10);
+		if (enptr != val && errno == 0) {
+		    result = r;
+		}
 	}
 	return result;
 }
 
 void celix_properties_setLong(celix_properties_t *props, const char *key, long value) {
-	char buf[32]; //should be enough to store long long int
-	int writen = snprintf(buf, 32, "%li", value);
-	if (writen <= 31) {
-		celix_properties_set(props, key, buf);
-	} else {
-		fprintf(stderr,"buf to small for value '%li'\n", value);
+    char buf[32]; //should be enough to store long long int
+    int writen = snprintf(buf, 32, "%li", value);
+    if (writen <= 31) {
+        celix_properties_set(props, key, buf);
+    } else {
+        fprintf(stderr,"buf to small for value '%li'\n", value);
+    }
+}
+
+double celix_properties_getAsDouble(const celix_properties_t *props, const char *key, double defaultValue) {
+	double result = defaultValue;
+	const char *val = celix_properties_get(props, key, NULL);
+	if (val != NULL) {
+		char *enptr = NULL;
+		errno = 0;
+		double r = strtod(val, &enptr);
+		if (enptr != val && errno == 0) {
+			result = r;
+		}
 	}
+	return result;
+}
+
+void celix_properties_setDouble(celix_properties_t *props, const char *key, double val) {
+    char buf[32]; //should be enough to store long long int
+    int writen = snprintf(buf, 32, "%f", val);
+    if (writen <= 31) {
+        celix_properties_set(props, key, buf);
+    } else {
+        fprintf(stderr,"buf to small for value '%f'\n", val);
+    }
+}
+
+bool celix_properties_getAsBool(celix_properties_t *props, const char *key, bool defaultValue) {
+	bool result = defaultValue;
+	const char *val = celix_properties_get(props, key, NULL);
+	if (val != NULL) {
+		char buf[32];
+		snprintf(buf, 32, "%s", val);
+		char *trimmed = utils_stringTrim(buf);
+		if (strncasecmp("true", trimmed, strlen("true")) == 0) {
+		    result = true;
+		} else if (strncasecmp("false", trimmed, strlen("false")) == 0) {
+		    result = false;
+		}
+	}
+	return result;
+}
+
+void celix_properties_setBool(celix_properties_t *props, const char *key, bool val) {
+    celix_properties_set(props, key, val ? "true" : "false");
+}
+
+int celix_properties_size(const celix_properties_t *properties) {
+	return hashMap_size((hash_map_t*)properties);
+}
+
+celix_properties_iterator_t celix_propertiesIterator_construct(const celix_properties_t *properties) {
+	return hashMapIterator_construct((hash_map_t*)properties);
+}
+bool celix_propertiesIterator_hasNext(celix_properties_iterator_t *iter) {
+	return hashMapIterator_hasNext(iter);
+}
+const char* celix_propertiesIterator_nextKey(celix_properties_iterator_t *iter) {
+	return (const char*)hashMapIterator_nextKey(iter);
 }

@@ -17,7 +17,6 @@
  *under the License.
  */
 
-
 #ifndef FRAMEWORK_PRIVATE_H_
 #define FRAMEWORK_PRIVATE_H_
 
@@ -31,7 +30,7 @@
 #include "celix_errno.h"
 #include "service_factory.h"
 #include "bundle_archive.h"
-#include "service_listener.h"
+#include "celix_service_listener.h"
 #include "bundle_listener.h"
 #include "framework_listener.h"
 #include "service_registration.h"
@@ -40,12 +39,14 @@
 #include "celix_log.h"
 
 #include "celix_threads.h"
+#include "service_registry.h"
 
-struct framework {
-    char uuid[37];
-
-    struct bundle * bundle;
-    hash_map_pt installedBundleMap;
+struct celix_framework {
+#ifdef WITH_APR
+    apr_pool_t *pool;
+#endif
+    celix_bundle_t *bundle;
+    long bundleId; //the bundle id of the framework (normally 0)
     hash_map_pt installRequestMap;
 
     celix_thread_mutex_t serviceListenersLock;
@@ -61,28 +62,31 @@ struct framework {
     celix_service_registry_t *registry;
     bundle_cache_pt cache;
 
-    celix_thread_cond_t shutdownGate;
-    celix_thread_cond_t condition;
+    struct {
+        celix_thread_mutex_t mutex;
+        celix_thread_cond_t cond;
+        bool done; //true is shutdown is done
+        bool initialized; //true is a shutdown is initialized
+        celix_thread_t thread;
+    } shutdown;
 
-    celix_thread_mutex_t installedBundleMapLock;
-    celix_thread_mutex_t installRequestLock;
-    celix_thread_mutex_t mutex;
-    celix_thread_mutex_t bundleLock;
+    struct {
+        celix_array_list_t *entries; //value = celix_framework_bundle_entry_t*. Note ordered by installed bundle time
+                                     //i.e. later installed bundle are last
+        celix_thread_mutex_t mutex;
+    } installedBundles;
 
-    celix_thread_t globalLockThread;
-    array_list_pt globalLockWaitersList;
-    int globalLockCount;
-
-    bool interrupted;
-    bool shutdown;
 
     properties_pt configurationMap;
 
-    array_list_pt requests;
-    celix_thread_cond_t dispatcher;
-    celix_thread_mutex_t dispatcherLock;
-    celix_thread_t dispatcherThread;
-    celix_thread_t shutdownThread;
+
+    struct {
+        celix_thread_cond_t cond;
+        celix_thread_t thread;
+        celix_thread_mutex_t mutex; //protect active and requests
+        bool active;
+        celix_array_list_t *requests;
+    } dispatcher;
 
     framework_logger_pt logger;
 };
@@ -109,8 +113,8 @@ FRAMEWORK_EXPORT celix_status_t framework_ungetService(framework_pt framework, b
 FRAMEWORK_EXPORT celix_status_t fw_getBundleRegisteredServices(framework_pt framework, bundle_pt bundle, array_list_pt *services);
 FRAMEWORK_EXPORT celix_status_t fw_getBundleServicesInUse(framework_pt framework, bundle_pt bundle, array_list_pt *services);
 
-FRAMEWORK_EXPORT void fw_addServiceListener(framework_pt framework, bundle_pt bundle, service_listener_pt listener, const char* filter);
-FRAMEWORK_EXPORT void fw_removeServiceListener(framework_pt framework, bundle_pt bundle, service_listener_pt listener);
+FRAMEWORK_EXPORT void fw_addServiceListener(framework_pt framework, bundle_pt bundle, celix_service_listener_t *listener, const char* filter);
+FRAMEWORK_EXPORT void fw_removeServiceListener(framework_pt framework, bundle_pt bundle, celix_service_listener_t *listener);
 
 FRAMEWORK_EXPORT celix_status_t fw_addBundleListener(framework_pt framework, bundle_pt bundle, bundle_listener_pt listener);
 FRAMEWORK_EXPORT celix_status_t fw_removeBundleListener(framework_pt framework, bundle_pt bundle, bundle_listener_pt listener);
@@ -118,7 +122,7 @@ FRAMEWORK_EXPORT celix_status_t fw_removeBundleListener(framework_pt framework, 
 FRAMEWORK_EXPORT celix_status_t fw_addFrameworkListener(framework_pt framework, bundle_pt bundle, framework_listener_pt listener);
 FRAMEWORK_EXPORT celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bundle, framework_listener_pt listener);
 
-FRAMEWORK_EXPORT void fw_serviceChanged(framework_pt framework, service_event_type_e eventType, service_registration_pt registration, properties_pt oldprops);
+FRAMEWORK_EXPORT void fw_serviceChanged(framework_pt framework, celix_service_event_type_t eventType, service_registration_pt registration, properties_pt oldprops);
 
 FRAMEWORK_EXPORT celix_status_t fw_isServiceAssignable(framework_pt fw, bundle_pt requester, service_reference_pt reference, bool* assignable);
 
@@ -149,8 +153,8 @@ FRAMEWORK_EXPORT bundle_pt framework_getBundleById(framework_pt framework, long 
  **********************************************************************************************************************
  **********************************************************************************************************************/
 
-void celix_framework_useBundles(framework_t *fw, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
-bool celix_framework_useBundle(framework_t *fw, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
+void celix_framework_useBundles(framework_t *fw, bool includeFrameworkBundle, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
+void celix_framework_useBundle(framework_t *fw, bool onlyActive, long bundleId, void *callbackHandle, void(*use)(void *handle, const bundle_t *bnd));
 service_registration_t* celix_framework_registerServiceFactory(framework_t *fw , const celix_bundle_t *bnd, const char* serviceName, celix_service_factory_t *factory, celix_properties_t *properties);
 
 #endif /* FRAMEWORK_PRIVATE_H_ */
