@@ -19,10 +19,10 @@ env:
 matrix:
     include:
        - os: linux
-         dist: trusty
+         dist: xenial
          compiler: gcc
        - os: linux
-         dist: trusty
+         dist: xenial
          compiler: clang
        - os: osx
          osx_image: xcode7.3
