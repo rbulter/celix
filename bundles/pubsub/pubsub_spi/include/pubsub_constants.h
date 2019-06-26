@@ -38,4 +38,14 @@
  */
 #define PUBSUB_ENDPOINT_LOCAL_VISIBILITY     "local"
 
+/**
+ * Debug flag for verbose output.
+ */
+#define PUBSUB_VERBOSE_KEY              "pubsub.verbose"
+#define PUBSUB_VERBOSE_DEFAULT           true
+
+#define PUBSUB_DEFAULT_IP                "127.0.0.1"
+
+
+
 #endif /* PUBSUB_CONSTANTS_H_ */
