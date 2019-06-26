@@ -23,8 +23,16 @@
 #define PSA_TCP_BASE_PORT                       "PSA_TCP_BASE_PORT"
 #define PSA_TCP_MAX_PORT                        "PSA_TCP_MAX_PORT"
 
+#define PSA_TCP_MAX_RECV_SESSIONS               "PSA_TCP_MAX_RECV_SESSIONS"
+#define PSA_TCP_RECV_BUFFER_SIZE                "PSA_TCP_RECV_BUFFER_SIZE"
+#define PSA_TCP_TIMEOUT                         "PSA_TCP_TIMEOUT"
+
 #define PSA_TCP_DEFAULT_BASE_PORT               5501
 #define PSA_TCP_DEFAULT_MAX_PORT                6000
+
+#define PSA_TCP_DEFAULT_MAX_RECV_SESSIONS       16
+#define PSA_TCP_DEFAULT_RECV_BUFFER_SIZE        6500000
+#define PSA_TCP_DEFAULT_TIMEOUT                 5000
 
 #define PSA_TCP_DEFAULT_QOS_SAMPLE_SCORE 	      30
 #define PSA_TCP_DEFAULT_QOS_CONTROL_SCORE 	    70
@@ -37,9 +45,6 @@
 
 #define PSA_TCP_METRICS_ENABLED "PSA_TCP_METRICS_ENABLED"
 #define PSA_TCP_DEFAULT_METRICS_ENABLED true
-
-#define PUBSUB_PSA_TCP_SOCKET_ADDRESS_KEY   "tcp.socket_address"
-#define PUBSUB_PSA_TCP_SOCKET_PORT_KEY      "tcp.socker_port"
 
 #define PUBSUB_TCP_VERBOSE_KEY      "PSA_TCP_VERBOSE"
 #define PUBSUB_TCP_VERBOSE_DEFAULT  true

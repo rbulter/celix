@@ -30,16 +30,14 @@
 #include <math.h>
 #include <unistd.h>
 #include "pubsub_tcp_topic_receiver.h"
-#include "pubsub_tcp_buffer_handler.h"
+#include "pubsub_tcp_handler.h"
 #include "pubsub_psa_tcp_constants.h"
 #include "pubsub_tcp_common.h"
 
 #include <uuid/uuid.h>
 #include <pubsub_admin_metrics.h>
 
-#define PSA_TCP_RECV_TIMEOUT 1000
-#define MAX_EPOLL_EVENTS     10
-#define MAX_SESSIONS         16
+#define MAX_EPOLL_EVENTS     16
 #ifndef UUID_STR_LEN
 #define UUID_STR_LEN  37
 #endif
@@ -63,7 +61,7 @@ struct pubsub_tcp_topic_receiver {
   char *topic;
   char scopeAndTopicFilter[5];
   bool metricsEnabled;
-  pubsub_tcpBufferHandler_pt bufferHandler;
+  pubsub_tcpHandler_pt bufferHandler;
 
   struct {
     celix_thread_t thread;
@@ -153,9 +151,14 @@ pubsub_tcp_topic_receiver_t *pubsub_tcpTopicReceiver_create(celix_bundle_context
   receiver->scope = strndup(scope, 1024 * 1024);
   receiver->topic = strndup(topic, 1024 * 1024);
   receiver->thread.running = true;
-  receiver->bufferHandler = pubsub_tcpBufferHandler_create();
-  pubsub_tcpBufferHandler_create_receive_buffer(receiver->bufferHandler, MAX_SESSIONS, 65000, false);
-  pubsub_tcpBufferHandler_messageHandler(receiver->bufferHandler, receiver, processMsg);
+  receiver->bufferHandler = pubsub_tcpHandler_create();
+
+  long sessions = celix_bundleContext_getPropertyAsLong(ctx, PSA_TCP_MAX_RECV_SESSIONS, PSA_TCP_DEFAULT_MAX_RECV_SESSIONS);
+  long buffer_size = celix_bundleContext_getPropertyAsLong(ctx, PSA_TCP_RECV_BUFFER_SIZE, PSA_TCP_DEFAULT_RECV_BUFFER_SIZE);
+  long timeout = celix_bundleContext_getPropertyAsLong(ctx, PSA_TCP_TIMEOUT, PSA_TCP_DEFAULT_TIMEOUT);
+  pubsub_tcpHandler_create_receive_buffer_store(receiver->bufferHandler, (unsigned int)sessions, (unsigned int)buffer_size);
+  pubsub_tcpHandler_set_timeout(receiver->bufferHandler, (unsigned int)timeout);
+  pubsub_tcpHandler_messageHandler(receiver->bufferHandler, receiver, processMsg);
 
   psa_tcp_setScopeAndTopicFilter(scope, topic, receiver->scopeAndTopicFilter);
   receiver->metricsEnabled = celix_bundleContext_getPropertyAsBool(ctx, PSA_TCP_METRICS_ENABLED,
@@ -269,7 +272,7 @@ void pubsub_tcpTopicReceiver_destroy(pubsub_tcp_topic_receiver_t *receiver) {
     celixThreadMutex_destroy(&receiver->requestedConnections.mutex);
     celixThreadMutex_destroy(&receiver->thread.mutex);
 
-    pubsub_tcpBufferHandler_destroy(receiver->bufferHandler);
+    pubsub_tcpHandler_destroy(receiver->bufferHandler);
 
     free(receiver->scope);
     free(receiver->topic);
@@ -334,7 +337,7 @@ void pubsub_tcpTopicReceiver_disconnectFrom(pubsub_tcp_topic_receiver_t *receive
   celixThreadMutex_lock(&receiver->requestedConnections.mutex);
   psa_tcp_requested_connection_entry_t *entry = hashMap_remove(receiver->requestedConnections.map, url);
   if (entry != NULL) {
-    int rc = pubsub_tcpBufferHandler_close_connection(receiver->bufferHandler, entry->url);
+    int rc = pubsub_tcpHandler_close_connection(receiver->bufferHandler, entry->url);
     if (rc < 0) L_WARN("[PSA_ZMQ] Error disconnecting from zmq url %s. (%s)", url, strerror(errno));
   }
   if (entry != NULL) {
@@ -553,7 +556,7 @@ static void *psa_tcp_recvThread(void *data) {
     if (!allInitialized) {
       psa_tcp_initializeAllSubscribers(receiver);
     }
-    pubsub_tcpBufferHandler_handler(receiver->bufferHandler);
+    pubsub_tcpHandler_handler(receiver->bufferHandler);
 
     celixThreadMutex_lock(&receiver->thread.mutex);
     running = receiver->thread.running;
@@ -569,67 +572,6 @@ static void *psa_tcp_recvThread(void *data) {
   } // while
   return NULL;
 }
-
-#ifdef NOT
-static void *psa_tcp_recvThread(void *data) {
-  pubsub_tcp_topic_receiver_t *receiver = data;
-
-  celixThreadMutex_lock(&receiver->recvThread.mutex);
-  bool running = receiver->recvThread.running;
-  celixThreadMutex_unlock(&receiver->recvThread.mutex);
-
-  celixThreadMutex_lock(&receiver->requestedConnections.mutex);
-  bool allConnected = receiver->requestedConnections.allConnected;
-  celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
-
-  celixThreadMutex_lock(&receiver->subscribers.mutex);
-  bool allInitialized = receiver->subscribers.allInitialized;
-  celixThreadMutex_unlock(&receiver->subscribers.mutex);
-
-
-  while (running) {
-    if (!allConnected) {
-      psa_tcp_connectToAllRequestedConnections(receiver);
-    }
-    if (!allInitialized) {
-      psa_tcp_initializeAllSubscribers(receiver);
-    }
-    int nfds = epoll_wait(receiver->topicEpollFd, events, MAX_EPOLL_EVENTS, PSA_TCP_RECV_TIMEOUT * 1000);
-    int i;
-    for (i = 0; i < nfds; i++) {
-      unsigned int index;
-      unsigned int size;
-      if (pubsub_tcpBufferHandler_dataAvailable(receiver->bufferHandler, events[i].data.fd, &index, &size) == true) {
-        // Handle data
-        pubsub_tcp_msg_header_t *msg = NULL;
-        const unsigned char *payload = NULL;
-        size_t payloadSize = 0;
-        if (pubsub_tcpBufferHandler_read(receiver->bufferHandler, index, &msg, (void**) payload, size) != 0) {
-          fprintf(stderr, "[PSA_TCP]: ERROR pubsub_tcpBufferHandler_read with index %d\n", index);
-          continue;
-        }
-        struct timespec receiveTime;
-        clock_gettime(CLOCK_REALTIME, &receiveTime);
-        processMsg(receiver, msg, payload, payloadSize, &receiveTime);
-        free(msg);
-      }
-    }
-    celixThreadMutex_lock(&receiver->recvThread.mutex);
-    running = receiver->recvThread.running;
-    celixThreadMutex_unlock(&receiver->recvThread.mutex);
-
-    celixThreadMutex_lock(&receiver->requestedConnections.mutex);
-    allConnected = receiver->requestedConnections.allConnected;
-    celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
-
-    celixThreadMutex_lock(&receiver->subscribers.mutex);
-    allInitialized = receiver->subscribers.allInitialized;
-    celixThreadMutex_unlock(&receiver->subscribers.mutex);
-  } // while
-
-  return NULL;
-}
-#endif
 
 pubsub_admin_receiver_metrics_t *pubsub_tcpTopicReceiver_metrics(pubsub_tcp_topic_receiver_t *receiver) {
   pubsub_admin_receiver_metrics_t *result = calloc(1, sizeof(*result));
@@ -699,7 +641,7 @@ static void psa_tcp_connectToAllRequestedConnections(pubsub_tcp_topic_receiver_t
     while (hashMapIterator_hasNext(&iter)) {
       psa_tcp_requested_connection_entry_t *entry = hashMapIterator_nextValue(&iter);
       if (!entry->connected){
-        entry->fd = pubsub_tcpBufferHandler_connect(entry->parent->bufferHandler, entry->url, entry, psa_tcp_connectHandler, psa_tcp_disConnectHandler);
+        entry->fd = pubsub_tcpHandler_connect(entry->parent->bufferHandler, entry->url, entry, psa_tcp_connectHandler, psa_tcp_disConnectHandler);
         if (entry->fd < 0) {
           //L_WARN("[PSA_TCP] Error connecting to tcp url %s\n", entry->url);
           allConnected = false;
@@ -788,63 +730,3 @@ static void psa_tcp_setupTcpContext(pubsub_tcp_topic_receiver_t *receiver, celix
     }
   }
 }
-
-#if NOT
-static void psa_tcp_setupZmqSocket(pubsub_tcp_topic_receiver_t *receiver, const celix_properties_t *topicProperties) {
-  int timeout = PSA_TCP_RECV_TIMEOUT;
-  int res = tcp_setsockopt(receiver->tcpSock, TCP_RCVTIMEO, &timeout, sizeof(timeout));
-  if (res) {
-    L_ERROR("[PSA_TCP] Cannot set TCP socket option TCP_RCVTIMEO errno=%d", errno);
-  }
-}
-
-static void psa_tcp_setupZmqContext(pubsub_tcp_topic_receiver_t *receiver, const celix_properties_t *topicProperties) {
-  //NOTE. TCP will abort when performing a sched_setscheduler without permission.
-  //As result permission has to be checked first.
-  //TODO update this to use cap_get_pid and cap-get_flag instead of check user is root (note adds dep to -lcap)
-  bool gotPermission = false;
-  if (getuid() == 0) {
-    gotPermission = true;
-  }
-
-
-  long prio = celix_properties_getAsLong(topicProperties, PUBSUB_TCP_THREAD_REALTIME_PRIO, -1L);
-  if (prio > 0 && prio < 100) {
-    if (gotPermission) {
-      tcp_ctx_set(receiver->tcpCtx, TCP_THREAD_PRIORITY, (int) prio);
-    } else {
-      L_INFO("Skipping configuration of thread prio to %i. No permission\n", (int) prio);
-    }
-  }
-
-  const char *sched = celix_properties_get(topicProperties, PUBSUB_TCP_THREAD_REALTIME_SCHED, NULL);
-  if (sched != NULL) {
-    int policy = TCP_THREAD_SCHED_POLICY_DFLT;
-    if (strncmp("SCHED_OTHER", sched, 16) == 0) {
-      policy = SCHED_OTHER;
-    } else if (strncmp("SCHED_BATCH", sched, 16) == 0) {
-      policy = SCHED_BATCH;
-    } else if (strncmp("SCHED_IDLE", sched, 16) == 0) {
-      policy = SCHED_IDLE;
-    } else if (strncmp("SCHED_FIFO", sched, 16) == 0) {
-      policy = SCHED_FIFO;
-    } else if (strncmp("SCHED_RR", sched, 16) == 0) {
-      policy = SCHED_RR;
-    }
-    if (gotPermission) {
-      tcp_ctx_set(receiver->tcpCtx, TCP_THREAD_SCHED_POLICY, policy);
-    } else {
-      L_INFO("Skipping configuration of thread scheduling to %s. No permission\n", sched);
-    }
-  }
-}
-
-static void psa_tcp_setupZmqSocket(pubsub_tcp_topic_receiver_t *receiver, const celix_properties_t *topicProperties) {
-  int timeout = PSA_TCP_RECV_TIMEOUT;
-  int res = tcp_setsockopt(receiver->tcpSock, TCP_RCVTIMEO, &timeout, sizeof(timeout));
-  if (res) {
-    L_ERROR("[PSA_TCP] Cannot set TCP socket option TCP_RCVTIMEO errno=%d", errno);
-  }
-}
-
-#endif

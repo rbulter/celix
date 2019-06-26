@@ -36,7 +36,7 @@ if (PUBSUB)
 	add_subdirectory(pubsub_admin_tcp)
 	add_subdirectory(keygen)
 	add_subdirectory(mock)
-
+	add_subdirectory(test)
 	add_subdirectory(examples)
 	if (ENABLE_TESTING)
 		option(BUILD_PUBSUB_TESTS "Enable Tests for PUBSUB" OFF)

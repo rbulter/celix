@@ -27,7 +27,7 @@
 #include <arpa/inet.h>
 #include <log_helper.h>
 #include "pubsub_tcp_topic_sender.h"
-#include "pubsub_tcp_buffer_handler.h"
+#include "pubsub_tcp_handler.h"
 #include "pubsub_psa_tcp_constants.h"
 #include "pubsub_tcp_common.h"
 #include <uuid/uuid.h>
@@ -52,7 +52,7 @@ struct pubsub_tcp_topic_sender {
     pubsub_serializer_service_t *serializer;
     uuid_t fwUUID;
     bool metricsEnabled;
-    pubsub_tcpBufferHandler_pt bufferHandler;
+    pubsub_tcpHandler_pt bufferHandler;
 
     char *scope;
     char *topic;
@@ -129,7 +129,7 @@ pubsub_tcp_topic_sender_t* pubsub_tcpTopicSender_create(
     sender->logHelper = logHelper;
     sender->serializerSvcId = serializerSvcId;
     sender->serializer = ser;
-    sender->bufferHandler = pubsub_tcpBufferHandler_create();
+    sender->bufferHandler = pubsub_tcpHandler_create();
     psa_tcp_setScopeAndTopicFilter(scope, topic, sender->scopeAndTopicFilter);
     const char* uuid = celix_bundleContext_getProperty(ctx, OSGI_FRAMEWORK_FRAMEWORK_UUID, NULL);
     if (uuid != NULL) {
@@ -140,7 +140,7 @@ pubsub_tcp_topic_sender_t* pubsub_tcpTopicSender_create(
     //setting up tcp socket for TCP TopicSender
     {
         if (staticBindUrl != NULL) {
-            int rv = pubsub_tcpBufferHandler_listen(sender->bufferHandler, (char*)staticBindUrl);
+            int rv = pubsub_tcpHandler_listen(sender->bufferHandler, (char*)staticBindUrl);
             if (rv == -1) {
                 L_WARN("Error for tcp_bind using static bind url '%s'. %s", staticBindUrl, strerror(errno));
             } else {
@@ -156,7 +156,7 @@ pubsub_tcp_topic_sender_t* pubsub_tcpTopicSender_create(
                 asprintf(&url, "tcp://%s:%u", bindIP, port);
                 char *bindUrl = NULL;
                 asprintf(&bindUrl, "tcp://0.0.0.0:%u", port);
-                int rv = pubsub_tcpBufferHandler_listen(sender->bufferHandler, bindUrl);
+                int rv = pubsub_tcpHandler_listen(sender->bufferHandler, bindUrl);
                 if (rv == -1) {
                     L_WARN("Error for tcp_bind using dynamic bind url '%s'. %s", bindUrl, strerror(errno));
                     free(url);
@@ -219,7 +219,7 @@ pubsub_tcp_topic_sender_t* pubsub_tcpTopicSender_create(
 void pubsub_tcpTopicSender_destroy(pubsub_tcp_topic_sender_t *sender) {
     if (sender != NULL) {
         celix_bundleContext_unregisterService(sender->ctx, sender->publisher.svcId);
-        pubsub_tcpBufferHandler_destroy(sender->bufferHandler);
+        pubsub_tcpHandler_destroy(sender->bufferHandler);
 
         celixThreadMutex_lock(&sender->boundedServices.mutex);
         hash_map_iterator_t iter = hashMapIterator_construct(sender->boundedServices.map);
@@ -369,7 +369,7 @@ static void *psa_tcp_sendThread(void *data) {
   celixThreadMutex_unlock(&sender->thread.mutex);
 
   while (running) {
-    pubsub_tcpBufferHandler_handler(sender->bufferHandler);
+    pubsub_tcpHandler_handler(sender->bufferHandler);
 
     celixThreadMutex_lock(&sender->thread.mutex);
     running = sender->thread.running;
@@ -473,7 +473,7 @@ static int psa_tcp_topicPublicationSend(void* handle, unsigned int msgTypeId, co
             errno = 0;
             bool sendOk = true;
             {
-              int rc = pubsub_tcpBufferHandler_write(sender->bufferHandler, &msg_hdr, serializedOutput, serializedOutputLen, 0);
+              int rc = pubsub_tcpHandler_write(sender->bufferHandler, &msg_hdr, serializedOutput, serializedOutputLen, 0);
               if (rc < 0 ){
                 status = -1;
                 sendOk = false;

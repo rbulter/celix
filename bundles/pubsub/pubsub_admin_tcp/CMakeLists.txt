@@ -28,7 +28,7 @@
 			src/pubsub_tcp_admin.c
 			src/pubsub_tcp_topic_sender.c
 			src/pubsub_tcp_topic_receiver.c
-			src/pubsub_tcp_buffer_handler.c
+                        src/pubsub_tcp_handler.c
 			src/pubsub_tcp_common.c
 	)
 
