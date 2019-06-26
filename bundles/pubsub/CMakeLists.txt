@@ -33,6 +33,7 @@ if (PUBSUB)
 	add_subdirectory(pubsub_admin_zmq)
 	add_subdirectory(pubsub_admin_nanomsg)
 	add_subdirectory(pubsub_admin_udp_mc)
+	add_subdirectory(pubsub_admin_tcc)
 	add_subdirectory(keygen)
 	add_subdirectory(mock)
 
