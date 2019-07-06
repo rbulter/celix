@@ -37,6 +37,8 @@
 
 
 typedef struct pubsub_tcpHandler_url {
+  char *url;
+  char *bind_url;
   char *protocol;
   char *hostname;
   unsigned int portnr;

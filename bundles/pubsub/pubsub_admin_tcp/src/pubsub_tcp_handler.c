@@ -223,7 +223,7 @@ int pubsub_tcpHandler_connect(pubsub_tcpHandler_pt handle, char *url) {
   pubsub_tcpHandler_url_t url_info;
   pubsub_tcpHandler_setUrlInfo(url, &url_info);
   psa_tcp_connection_entry_t *entry = NULL;
-  int fd = pubsub_tcpHandler_open(handle, NULL);
+  int fd = pubsub_tcpHandler_open(handle, url_info.bind_url);
   celixThreadRwlock_writeLock(&handle->dbLock);
   int rc = fd;
   struct sockaddr_in addr; // connector's address information
@@ -398,6 +398,7 @@ int pubsub_tcpHandler_setInAddr(pubsub_tcpHandler_pt handle, const char *hostnam
 
 void pubsub_tcpHandler_setUrlInfo(char *url, pubsub_tcpHandler_url_t *url_info) {
   if (url_info) {
+    url_info->url = NULL;
     url_info->protocol = NULL;
     url_info->hostname = NULL;
     url_info->bind_hostname = NULL;
@@ -406,22 +407,53 @@ void pubsub_tcpHandler_setUrlInfo(char *url, pubsub_tcpHandler_url_t *url_info) 
   }
 
   if (url && url_info) {
-    url_info->protocol = strtok(strdup(url), "://");
-    char *hostname = NULL;
+    url_info->url = strdup(url);
+    url_info->protocol = strtok(strdup(url_info->url) , "://");
     if (url_info->protocol) {
-      hostname = strstr(url, "://");
-      if (hostname) {
-        hostname += 3;
+      url = strstr(url, "://");
+      if (url) {
+        url += 3;
       }
-    } else {
-      hostname = url;
     }
-    url_info->hostname = strtok(strdup(hostname), ":");
-    if (url_info->hostname) {
-      char *port = strstr(hostname, ":");
+    char* interface = strstr(url, "@");
+    char* hostname  = strtok(strdup(url),"@");
+
+    if (hostname) {
+      char* port = strstr(hostname, ":");
+      url_info->hostname = strtok(strdup(hostname),":");
       if (port) {
         port += 1;
         if (isdigit(atoi(port)) == 0) url_info->portnr = atoi(port);
+      }
+      free(hostname);
+    }
+
+    if (interface) {
+      *interface++ = 0;
+      char* port = strstr(interface, ":");
+      url_info->bind_hostname = strtok(strdup(interface),":");
+      if (port) {
+        port += 1;
+        if (isdigit(atoi(port)) == 0) url_info->bind_portnr = atoi(port);
+      }
+      url_info->bind_url = malloc(1024*1024);
+      if ((url_info->protocol)&&(url_info->bind_portnr)) {
+        asprintf(&url_info->bind_url, "%s://%s:%u", url_info->protocol, url_info->bind_hostname, url_info->bind_portnr);
+      } else if (url_info->protocol) {
+        asprintf(&url_info->bind_url, "%s://%s", url_info->protocol, url_info->bind_hostname);
+      } else {
+        asprintf(&url_info->bind_url, "%s", url_info->bind_hostname);
+      }
+    }
+    if (url_info->hostname) {
+      free(url_info->url);
+      url_info->url = malloc(1024 * 1024);
+      if ((url_info->protocol) && (url_info->portnr)) {
+        asprintf(&url_info->url, "%s://%s:%u", url_info->protocol, url_info->hostname, url_info->portnr);
+      } else if (url_info->protocol) {
+        asprintf(&url_info->url, "%s://%s", url_info->protocol, url_info->hostname);
+      } else {
+        asprintf(&url_info->url, "%s", url_info->hostname);
       }
     }
   }
@@ -431,9 +463,12 @@ void pubsub_tcpHandler_free_setUrlInfo(pubsub_tcpHandler_url_t *url_info) {
   if (url_info->hostname) free(url_info->hostname);
   if (url_info->protocol) free(url_info->protocol);
   if (url_info->bind_hostname) free(url_info->bind_hostname);
+  if (url_info->url) free(url_info->url);
   url_info->hostname = NULL;
   url_info->protocol = NULL;
   url_info->bind_hostname = NULL;
+  url_info->bind_portnr = 0;
+  url_info->portnr = 0;
 }
 
 
