@@ -25,9 +25,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <log_helper.h>
 #include "version.h"
 #include "pubsub_tcp_msg_header.h"
 
+
+typedef struct pubsub_tcp_endPointStore{
+  celix_thread_mutex_t mutex;
+  hash_map_t *map;
+} pubsub_tcp_endPointStore_t;
 
 /*
  * NOTE tcp is used by first sending three frames:
@@ -42,13 +48,7 @@
 
 int psa_tcp_localMsgTypeIdForMsgType(void* handle, const char* msgType, unsigned int* msgTypeId);
 void psa_tcp_setScopeAndTopicFilter(const char* scope, const char *topic, char *filter);
-
 bool psa_tcp_checkVersion(version_pt msgVersion, const pubsub_tcp_msg_header_t *hdr);
-
-celix_status_t psa_tcp_decodeHeader(const unsigned char *data, size_t dataLen, pubsub_tcp_msg_header_t *header);
-void psa_tcp_encodeHeader(const pubsub_tcp_msg_header_t *msgHeader, unsigned char *data, size_t dataLen);
-
-struct addrinfo* psa_tcp_getaddrinfo(const char* host, const char* serv, int flags, int family, int socktype);
-void psa_tcp_freeaddrinfo(struct addrinfo* res);
+void psa_tcp_setupTcpContext(log_helper_t *logHelper, celix_thread_t *thread, const celix_properties_t *topicProperties);
 
 #endif //CELIX_PUBSUB_TCP_COMMON_H

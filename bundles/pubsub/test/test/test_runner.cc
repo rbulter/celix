@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
 
     MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
     int rc = RUN_ALL_TESTS(argc, argv);
-
+    while(1) {};
     celixLauncher_stop(fw);
     celixLauncher_waitForShutdown(fw);
     celixLauncher_destroy(fw);

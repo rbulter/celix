@@ -21,6 +21,7 @@
 
 #include "celix_bundle_context.h"
 #include "pubsub_admin_metrics.h"
+#include "pubsub_tcp_common.h"
 
 typedef struct pubsub_tcp_topic_sender pubsub_tcp_topic_sender_t;
 
@@ -29,6 +30,8 @@ pubsub_tcp_topic_sender_t* pubsub_tcpTopicSender_create(
         log_helper_t *logHelper,
         const char *scope,
         const char *topic,
+        const celix_properties_t *topicProperties,
+        pubsub_tcp_endPointStore_t* endPointStore,
         long serializerSvcId,
         pubsub_serializer_service_t *ser,
         const char *bindIP,

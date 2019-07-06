@@ -28,6 +28,7 @@
 
 #include "pubsub_utils.h"
 #include "pubsub_tcp_admin.h"
+#include "pubsub_tcp_handler.h"
 #include "pubsub_psa_tcp_constants.h"
 #include "pubsub_tcp_topic_sender.h"
 #include "pubsub_tcp_topic_receiver.h"
@@ -77,6 +78,7 @@ struct pubsub_tcp_admin {
         hash_map_t *map; //key = endpoint uuid, value = celix_properties_t* (endpoint)
     } discoveredEndpoints;
 
+  pubsub_tcp_endPointStore_t endpointStore;
 };
 
 typedef struct psa_tcp_serializer_entry {
@@ -148,6 +150,9 @@ pubsub_tcp_admin_t* pubsub_tcpAdmin_create(celix_bundle_context_t *ctx, log_help
     celixThreadMutex_create(&psa->discoveredEndpoints.mutex, NULL);
     psa->discoveredEndpoints.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
 
+    celixThreadMutex_create(&psa->endpointStore.mutex, NULL);
+    psa->endpointStore.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
+
     return psa;
 }
 
@@ -157,9 +162,19 @@ void pubsub_tcpAdmin_destroy(pubsub_tcp_admin_t *psa) {
     }
 
     //note assuming al psa register services and service tracker are removed.
+    celixThreadMutex_create(&psa->endpointStore.mutex, NULL);
+    psa->endpointStore.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
+
+    celixThreadMutex_lock(&psa->endpointStore.mutex);
+    hash_map_iterator_t  iter = hashMapIterator_construct(psa->endpointStore.map);
+    while (hashMapIterator_hasNext(&iter)) {
+      pubsub_tcpHandler_t* tcpHandler = hashMapIterator_nextValue(&iter);
+      pubsub_tcpHandler_destroy(tcpHandler);
+    }
+    celixThreadMutex_unlock(&psa->endpointStore.mutex);
 
     celixThreadMutex_lock(&psa->topicSenders.mutex);
-    hash_map_iterator_t iter = hashMapIterator_construct(psa->topicSenders.map);
+    iter = hashMapIterator_construct(psa->topicSenders.map);
     while (hashMapIterator_hasNext(&iter)) {
         pubsub_tcp_topic_sender_t *sender = hashMapIterator_nextValue(&iter);
         pubsub_tcpTopicSender_destroy(sender);
@@ -189,6 +204,9 @@ void pubsub_tcpAdmin_destroy(pubsub_tcp_admin_t *psa) {
         free(entry);
     }
     celixThreadMutex_unlock(&psa->serializers.mutex);
+
+    celixThreadMutex_destroy(&psa->endpointStore.mutex);
+    hashMap_destroy(psa->endpointStore.map, true, false);
 
     celixThreadMutex_destroy(&psa->topicSenders.mutex);
     hashMap_destroy(psa->topicSenders.map, true, false);
@@ -323,9 +341,18 @@ celix_status_t pubsub_tcpAdmin_setupTopicSender(void *handle, const char *scope,
 
     celix_properties_t *newEndpoint = NULL;
 
-    const char * staticBindUrl = topicProperties != NULL ?
-            celix_properties_get(topicProperties, PUBSUB_TCP_STATIC_BIND_URL, NULL) : NULL;
+    const char *staticBindUrl = topicProperties != NULL ? celix_properties_get(topicProperties, PUBSUB_TCP_STATIC_BIND_URL, NULL) : NULL;
     char *key = pubsubEndpoint_createScopeTopicKey(scope, topic);
+
+    /* Check if it's a static client endpoint, needs also be declared static  */
+    bool isEndPointTypeClient = false;
+    const char *endPointType = celix_properties_get(topicProperties, PUBSUB_TCP_STATIC_ENDPOINT_TYPE, NULL);
+    if (endPointType != NULL) {
+      if (strncmp(PUBSUB_TCP_STATIC_ENDPOINT_TYPE_CLIENT, endPointType, strlen(PUBSUB_TCP_STATIC_ENDPOINT_TYPE_CLIENT)) ==0) {
+        isEndPointTypeClient = true;
+      }
+    }
+    const char *staticConnectUrls = ((topicProperties != NULL) && isEndPointTypeClient) ? celix_properties_get(topicProperties, PUBSUB_TCP_STATIC_CONNECT_URLS, NULL) : NULL;
 
     celixThreadMutex_lock(&psa->serializers.mutex);
     celixThreadMutex_lock(&psa->topicSenders.mutex);
@@ -333,8 +360,8 @@ celix_status_t pubsub_tcpAdmin_setupTopicSender(void *handle, const char *scope,
     if (sender == NULL) {
         psa_tcp_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serializerSvcId);
         if (serEntry != NULL) {
-            sender = pubsub_tcpTopicSender_create(psa->ctx, psa->log, scope, topic, serializerSvcId, serEntry->svc,
-                    psa->ipAddress, staticBindUrl, psa->basePort, psa->maxPort);
+            sender = pubsub_tcpTopicSender_create(psa->ctx, psa->log, scope, topic, topicProperties, &psa->endpointStore, serializerSvcId, serEntry->svc,
+                     psa->ipAddress, staticBindUrl, psa->basePort, psa->maxPort);
         }
         if (sender != NULL) {
             const char *psaType = PUBSUB_TCP_ADMIN_TYPE;
@@ -347,8 +374,7 @@ celix_status_t pubsub_tcpAdmin_setupTopicSender(void *handle, const char *scope,
             if (staticDiscUrl != NULL) {
                 celix_properties_set(newEndpoint, PUBSUB_TCP_URL_KEY, staticDiscUrl);
             }
-            celix_properties_setBool(newEndpoint, PUBSUB_TCP_STATIC_CONFIGURED, staticBindUrl != NULL || staticDiscUrl != NULL);
-
+            celix_properties_setBool(newEndpoint, PUBSUB_TCP_STATIC_CONFIGURED, staticBindUrl != NULL || staticDiscUrl != NULL || staticConnectUrls!=NULL);
             celix_properties_set(newEndpoint, PUBSUB_ENDPOINT_VISIBILITY, PUBSUB_ENDPOINT_SYSTEM_VISIBILITY);
 
             //if available also set container name
@@ -416,7 +442,8 @@ celix_status_t pubsub_tcpAdmin_setupTopicReceiver(void *handle, const char *scop
     if (receiver == NULL) {
         psa_tcp_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serializerSvcId);
         if (serEntry != NULL) {
-            receiver = pubsub_tcpTopicReceiver_create(psa->ctx, psa->log, scope, topic, topicProperties, serializerSvcId, serEntry->svc);
+            receiver = pubsub_tcpTopicReceiver_create(psa->ctx, psa->log, scope, topic, topicProperties, &psa->endpointStore,
+                    serializerSvcId, serEntry->svc);
         } else {
             L_ERROR("[PSA_TCP] Cannot find serializer for TopicSender %s/%s", scope, topic);
         }

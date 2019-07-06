@@ -32,14 +32,14 @@
 
 #define PSA_TCP_DEFAULT_MAX_RECV_SESSIONS       16
 #define PSA_TCP_DEFAULT_RECV_BUFFER_SIZE        6500000
-#define PSA_TCP_DEFAULT_TIMEOUT                 5000
+#define PSA_TCP_DEFAULT_TIMEOUT                 500
 
 #define PSA_TCP_DEFAULT_QOS_SAMPLE_SCORE 	      30
 #define PSA_TCP_DEFAULT_QOS_CONTROL_SCORE 	    70
 #define PSA_TCP_DEFAULT_SCORE 				          30
 
 #define PSA_TCP_QOS_SAMPLE_SCORE_KEY 		    "PSA_TCP_QOS_SAMPLE_SCORE"
-#define PSA_TCP_QOS_CONTROL_SCORE_KEY 		    "PSA_TCP_QOS_CONTROL_SCORE"
+#define PSA_TCP_QOS_CONTROL_SCORE_KEY 		  "PSA_TCP_QOS_CONTROL_SCORE"
 #define PSA_TCP_DEFAULT_SCORE_KEY 			    "PSA_TCP_DEFAULT_SCORE"
 
 
@@ -77,16 +77,21 @@
 #define PUBSUB_TCP_STATIC_CONFIGURED       "tcp.static.configured"
 
 /**
- * Can be set in the topic properties to fix a static tcp port for topic senders
- */
-#define PUBSUB_TCP_STATIC_BIND_PORT  "tcp.static.bind.port"
-
-/**
  * The static url which a subscriber should try to connect to.
  * The urls are space separated.
  * Can be set in the topic properties.
  */
 #define PUBSUB_TCP_STATIC_CONNECT_URLS    "tcp.static.connect.urls"
+
+/**
+ * The static endpoint type which a static endpoint should be configured.
+ * Can be set in the topic properties.
+ */
+#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE    "tcp.static.endpoint.type"
+
+
+#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE_SERVER "server"
+#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE_CLIENT "client"
 
 /**
  * Realtime thread prio and scheduling information. This is used to setup the thread prio/sched of the

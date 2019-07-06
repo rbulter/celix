@@ -21,6 +21,7 @@
 
 #include <pubsub_admin_metrics.h>
 #include "celix_bundle_context.h"
+#include "pubsub_tcp_common.h"
 
 typedef struct pubsub_tcp_topic_receiver pubsub_tcp_topic_receiver_t;
 
@@ -29,6 +30,7 @@ pubsub_tcp_topic_receiver_t* pubsub_tcpTopicReceiver_create(celix_bundle_context
                                                             const char *scope,
                                                             const char *topic,
                                                             const celix_properties_t *topicProperties,
+                                                            pubsub_tcp_endPointStore_t* endPointStore,
                                                             long serializerSvcId,
                                                             pubsub_serializer_service_t *serializer);
 void pubsub_tcpTopicReceiver_destroy(pubsub_tcp_topic_receiver_t *receiver);
