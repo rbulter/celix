@@ -42,9 +42,13 @@ struct pubsub_protocol_header {
     unsigned int metadataSize; /*!< Size of the metadata (Can be used for metadata buffer allocation by the receiver) */
 
     /** message segmentation attributes */
+    unsigned int convertEndianess; /*!< Indicates that the endianess of the message needs to be converted */
+
+    /** message segmentation attributes */
     unsigned int seqNr; /*!< seqNr for message segmentation, multiple segmentation messages with same seqNr belong to each other */
     unsigned int payloadPartSize; /*!< payloadPartSize contains size of payload part that is send by a single segmentation message */
     unsigned int payloadOffset; /*!< payloadOffset contains offset of payload part in the total message payload */
+    unsigned int isLastSegment; /*!< Indicates that message is the last message of the sequence */
 };
 
 typedef struct pubsub_protocol_payload pubsub_protocol_payload_t;
