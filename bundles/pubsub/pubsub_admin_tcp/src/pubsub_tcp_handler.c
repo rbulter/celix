@@ -86,7 +86,6 @@ typedef struct psa_tcp_connection_entry {
 // Handle administration
 //
 struct pubsub_tcpHandler {
-    unsigned int seqNr;
     celix_thread_rwlock_t dbLock;
     unsigned int timeout;
     hash_map_t *connection_url_map;
@@ -939,9 +938,6 @@ int pubsub_tcpHandler_write(pubsub_tcpHandler_t *handle, pubsub_protocol_message
                        entry->fd);
                 continue;
             }
-
-            message->header.seqNr = handle->seqNr;
-            handle->seqNr++;
 
             size_t msgSize = 0;
             size_t msgIovLen = 0;

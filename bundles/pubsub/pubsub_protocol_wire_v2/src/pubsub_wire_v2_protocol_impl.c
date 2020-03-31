@@ -17,12 +17,9 @@
  * under the License.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 
-#include "utils.h"
 #include "celix_properties.h"
 
 #include "pubsub_wire_v2_protocol_impl.h"
@@ -30,7 +27,6 @@
 
 struct pubsub_protocol_wire_v2 {
 };
-
 celix_status_t pubsubProtocol_wire_v2_create(pubsub_protocol_wire_v2_t **protocol) {
     celix_status_t status = CELIX_SUCCESS;
 
@@ -50,7 +46,7 @@ celix_status_t pubsubProtocol_wire_v2_destroy(pubsub_protocol_wire_v2_t* protoco
 }
 
 celix_status_t pubsubProtocol_wire_v2_getHeaderSize(void* handle, size_t *length) {
-    *length = sizeof(int) * 9 + sizeof(short) * 2; // header + sync + version = 24
+    *length = sizeof(int) * 8 + sizeof(short) * 2; // header + sync + version = 36
     return CELIX_SUCCESS;
 }
 
@@ -83,16 +79,6 @@ celix_status_t pubsubProtocol_wire_v2_encodeHeader(void *handle, pubsub_protocol
         *outBuffer = calloc(1, headerSize);
         *outLength = headerSize;
     }
-    if (*outLength < headerSize) {
-        void *tmp = realloc(*outBuffer, headerSize);
-        if (!tmp) {
-            free(*outBuffer);
-            *outBuffer = NULL;
-            status = CELIX_ENOMEM;
-        } else {
-           *outBuffer = tmp;
-        }
-    }
     if (*outBuffer == NULL) {
         status = CELIX_ENOMEM;
     } else {
@@ -101,13 +87,12 @@ celix_status_t pubsubProtocol_wire_v2_encodeHeader(void *handle, pubsub_protocol
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, PROTOCOL_WIRE_V2_SYNC);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, PROTOCOL_WIRE_V2_ENVELOPE_VERSION);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.msgId);
-        idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.seqNr);
         idx = pubsubProtocol_wire_v2_writeShort(*outBuffer, idx, convert, message->header.msgMajorVersion);
         idx = pubsubProtocol_wire_v2_writeShort(*outBuffer, idx, convert, message->header.msgMinorVersion);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.payloadSize);
+        idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.metadataSize);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.payloadPartSize);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.payloadOffset);
-        idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.metadataSize);
         idx = pubsubProtocol_wire_v2_writeInt(*outBuffer, idx, convert, message->header.isLastSegment);
         *outLength = idx;
     }
@@ -137,13 +122,12 @@ celix_status_t pubsubProtocol_wire_v2_decodeHeader(void* handle, void *data, siz
                 status = CELIX_ILLEGAL_ARGUMENT;
             } else {
                 idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.msgId);
-                idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.seqNr);
                 idx = pubsubProtocol_wire_v2_readShort(data, idx, convert, &message->header.msgMajorVersion);
                 idx = pubsubProtocol_wire_v2_readShort(data, idx, convert, &message->header.msgMinorVersion);
                 idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.payloadSize);
+                idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.metadataSize);
                 idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.payloadPartSize);
                 idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.payloadOffset);
-                idx = pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.metadataSize);
                 pubsubProtocol_wire_v2_readInt(data, idx, convert, &message->header.isLastSegment);
             }
         }

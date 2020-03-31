@@ -20,7 +20,7 @@
 #include "pubsub_wire_v2_protocol_common.h"
 
 #include <string.h>
-#include <byteswap.h>
+#include "celix_byteswap.h"
 
 int pubsubProtocol_wire_v2_readChar(const unsigned char *data, int offset, uint8_t *val) {
     memcpy(val, data + offset, sizeof(uint8_t));
@@ -30,19 +30,19 @@ int pubsubProtocol_wire_v2_readChar(const unsigned char *data, int offset, uint8
 
 int pubsubProtocol_wire_v2_readShort(const unsigned char *data, int offset, unsigned int convert, uint16_t *val) {
     memcpy(val, data + offset, sizeof(uint16_t));
-    if (convert) *val = __bswap_16(*val);
+    if (convert) *val = bswap_16(*val);
     return offset + sizeof(uint16_t);
 }
 
 int pubsubProtocol_wire_v2_readInt(const unsigned char *data, int offset, unsigned int convert, uint32_t *val) {
     memcpy(val, data + offset, sizeof(uint32_t));
-    if(convert) *val = __bswap_32(*val);
+    if(convert) *val = bswap_32(*val);
     return offset + sizeof(uint32_t);
 }
 
 int pubsubProtocol_wire_v2_readLong(const unsigned char *data, int offset, unsigned int convert, uint64_t *val) {
     memcpy(val, data + offset, sizeof(uint64_t));
-    if (convert) *val = __bswap_64(*val);
+    if (convert) *val = bswap_64(*val);
     return offset + sizeof(uint64_t);
 }
 
@@ -52,19 +52,19 @@ int pubsubProtocol_wire_v2_writeChar(unsigned char *data, int offset, uint8_t va
 }
 
 int pubsubProtocol_wire_v2_writeShort(unsigned char *data, int offset, unsigned int  convert, uint16_t val) {
-    uint16_t nVal = (convert) ? __bswap_16(val) : val;
+    uint16_t nVal = (convert) ? bswap_16(val) : val;
     memcpy(data + offset, &nVal, sizeof(uint16_t));
     return offset + sizeof(uint16_t);
 }
 
 int pubsubProtocol_wire_v2_writeInt(unsigned char *data, int offset, unsigned int  convert, uint32_t val) {
-    uint32_t nVal = (convert) ? __bswap_32(val)  : val;
+    uint32_t nVal = (convert) ? bswap_32(val)  : val;
     memcpy(data + offset, &nVal, sizeof(uint32_t));
     return offset + sizeof(uint32_t);
 }
 
 int pubsubProtocol_wire_v2_writeLong(unsigned char *data, int offset, unsigned int convert, uint64_t val) {
-    uint64_t nVal = (convert) ? __bswap_64(val) : val;
+    uint64_t nVal = (convert) ? bswap_64(val) : val;
     memcpy(data + offset, &nVal, sizeof(uint64_t));
     return offset + sizeof(uint64_t);
 }

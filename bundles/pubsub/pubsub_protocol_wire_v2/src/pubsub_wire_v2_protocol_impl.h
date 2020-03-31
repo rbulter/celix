@@ -22,6 +22,10 @@
 
 #include "pubsub_protocol.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PUBSUB_WIRE_V2_PROTOCOL_TYPE "wire_v2"
 
 typedef struct pubsub_protocol_wire_v2 pubsub_protocol_wire_v2_t;
@@ -36,8 +40,10 @@ celix_status_t pubsubProtocol_wire_v2_getSyncHeader(void* handle, void *syncHead
 celix_status_t pubsubProtocol_wire_v2_isMessageSegmentationSupported(void* handle, bool *isSupported);
 
 celix_status_t pubsubProtocol_wire_v2_encodeHeader(void *handle, pubsub_protocol_message_t *message, void **outBuffer, size_t *outLength);
-
 celix_status_t pubsubProtocol_wire_v2_decodeHeader(void* handle, void *data, size_t length, pubsub_protocol_message_t *message);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PUBSUB_PROTOCOL_WIRE_V2_H_ */
