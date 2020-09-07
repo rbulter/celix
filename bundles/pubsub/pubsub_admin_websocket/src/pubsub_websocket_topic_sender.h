@@ -22,6 +22,9 @@
 
 #include "celix_bundle_context.h"
 #include "pubsub_admin_metrics.h"
+#include "pubsub_protocol.h"
+#include "pubsub_websocket_common.h"
+#include "pubsub_websocket_handler.h"
 
 typedef struct pubsub_websocket_topic_sender pubsub_websocket_topic_sender_t;
 
@@ -30,8 +33,12 @@ pubsub_websocket_topic_sender_t* pubsub_websocketTopicSender_create(
         celix_log_helper_t *logHelper,
         const char *scope,
         const char *topic,
+        const celix_properties_t *topicProperties,
+        pubsub_websocket_endPointStore_t *endPointStore,
         long serializerSvcId,
-        pubsub_serializer_service_t *ser);
+        pubsub_serializer_service_t *ser,
+        long protocolSvcId,
+        pubsub_protocol_service_t *prot);
 void pubsub_websocketTopicSender_destroy(pubsub_websocket_topic_sender_t *sender);
 
 const char* pubsub_websocketTopicSender_scope(pubsub_websocket_topic_sender_t *sender);
@@ -39,5 +46,7 @@ const char* pubsub_websocketTopicSender_topic(pubsub_websocket_topic_sender_t *s
 const char* pubsub_websocketTopicSender_url(pubsub_websocket_topic_sender_t *sender);
 
 long pubsub_websocketTopicSender_serializerSvcId(pubsub_websocket_topic_sender_t *sender);
+long pubsub_websocketTopicSender_protocolSvcId(pubsub_websocket_topic_sender_t *sender);
+bool pubsub_websocketTopicSender_isStatic(pubsub_websocket_topic_sender_t *sender);
 
 #endif //CELIX_PUBSUB_WEBSOCKET_TOPIC_SENDER_H

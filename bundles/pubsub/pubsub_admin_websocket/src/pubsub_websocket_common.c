@@ -22,26 +22,6 @@
 #include <stdio.h>
 #include "pubsub_websocket_common.h"
 
-bool psa_websocket_checkVersion(version_pt msgVersion, const pubsub_websocket_msg_header_t *hdr) {
-    bool check=false;
-    int major=0,minor=0;
-
-    if (hdr->major == 0 && hdr->minor == 0) {
-        //no check
-        return true;
-    }
-
-    if (msgVersion!=NULL) {
-        version_getMajor(msgVersion,&major);
-        version_getMinor(msgVersion,&minor);
-        if (hdr->major==((unsigned char)major)) { /* Different major means incompatible */
-            check = (hdr->minor>=((unsigned char)minor)); /* Compatible only if the provider has a minor equals or greater (means compatible update) */
-        }
-    }
-
-    return check;
-}
-
 void psa_websocket_setScopeAndTopicFilter(const char* scope, const char *topic, char *filter) {
     for (int i = 0; i < 5; ++i) {
         filter[i] = '\0';
@@ -62,7 +42,7 @@ char *psa_websocket_createURI(const char *scope, const char *topic) {
         asprintf(&uri, "/pubsub/%s/%s", scope, topic);
     }
     else if(scope == NULL && topic != NULL) {
-        asprintf(&uri, "/pubsub/default/%s", topic);
+        asprintf(&uri, "/pubsub/%s", topic);
     }
     return uri;
 }

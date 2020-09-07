@@ -54,7 +54,13 @@ struct pubsub_websocket_admin {
         hash_map_t *map; //key = svcId, value = psa_websocket_serializer_entry_t*
     } serializers;
 
-    struct {
+
+      struct {
+        celix_thread_mutex_t mutex;
+        hash_map_t *map; //key = svcId, value = psa_tcp_protocol_entry_t*
+      } protocols;
+
+  struct {
         celix_thread_mutex_t mutex;
         hash_map_t *map; //key = scope:topic key, value = pubsub_websocket_topic_sender_t*
     } topicSenders;
@@ -69,6 +75,7 @@ struct pubsub_websocket_admin {
         hash_map_t *map; //key = endpoint uuid, value = celix_properties_t* (endpoint)
     } discoveredEndpoints;
 
+    pubsub_websocket_endPointStore_t endpointStore;
 };
 
 typedef struct psa_websocket_serializer_entry {
@@ -77,8 +84,20 @@ typedef struct psa_websocket_serializer_entry {
     pubsub_serializer_service_t *svc;
 } psa_websocket_serializer_entry_t;
 
+typedef struct psa_tcp_protocol_entry {
+  const char *protType;
+  long svcId;
+  pubsub_protocol_service_t *svc;
+} psa_tcp_protocol_entry_t;
+
 static celix_status_t pubsub_websocketAdmin_connectEndpointToReceiver(pubsub_websocket_admin_t* psa, pubsub_websocket_topic_receiver_t *receiver, const celix_properties_t *endpoint);
 static celix_status_t pubsub_websocketAdmin_disconnectEndpointFromReceiver(pubsub_websocket_admin_t* psa, pubsub_websocket_topic_receiver_t *receiver, const celix_properties_t *endpoint);
+
+static bool pubsub_websocketAdmin_endpointIsPublisher(const celix_properties_t *endpoint) {
+    const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
+    return type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0;
+}
+
 
 
 pubsub_websocket_admin_t* pubsub_websocketAdmin_create(celix_bundle_context_t *ctx, celix_log_helper_t *logHelper) {
@@ -95,6 +114,9 @@ pubsub_websocket_admin_t* pubsub_websocketAdmin_create(celix_bundle_context_t *c
     celixThreadMutex_create(&psa->serializers.mutex, NULL);
     psa->serializers.map = hashMap_create(NULL, NULL, NULL, NULL);
 
+    celixThreadMutex_create(&psa->protocols.mutex, NULL);
+    psa->protocols.map = hashMap_create(NULL, NULL, NULL, NULL);
+
     celixThreadMutex_create(&psa->topicSenders.mutex, NULL);
     psa->topicSenders.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
 
@@ -104,6 +126,9 @@ pubsub_websocket_admin_t* pubsub_websocketAdmin_create(celix_bundle_context_t *c
     celixThreadMutex_create(&psa->discoveredEndpoints.mutex, NULL);
     psa->discoveredEndpoints.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
 
+    celixThreadMutex_create(&psa->endpointStore.mutex, NULL);
+    psa->endpointStore.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
+
     return psa;
 }
 
@@ -112,10 +137,16 @@ void pubsub_websocketAdmin_destroy(pubsub_websocket_admin_t *psa) {
         return;
     }
 
-    //note assuming al psa register services and service tracker are removed.
+    celixThreadMutex_lock(&psa->endpointStore.mutex);
+    hash_map_iterator_t iter = hashMapIterator_construct(psa->endpointStore.map);
+    while (hashMapIterator_hasNext(&iter)) {
+        pubsub_websocket_handler_t *handler = hashMapIterator_nextValue(&iter);
+        pubsub_websocket_handler_destroy(handler);
+    }
+    celixThreadMutex_unlock(&psa->endpointStore.mutex);
 
     celixThreadMutex_lock(&psa->topicSenders.mutex);
-    hash_map_iterator_t iter = hashMapIterator_construct(psa->topicSenders.map);
+    iter = hashMapIterator_construct(psa->topicSenders.map);
     while (hashMapIterator_hasNext(&iter)) {
         pubsub_websocket_topic_sender_t *sender = hashMapIterator_nextValue(&iter);
         pubsub_websocketTopicSender_destroy(sender);
@@ -146,6 +177,17 @@ void pubsub_websocketAdmin_destroy(pubsub_websocket_admin_t *psa) {
     }
     celixThreadMutex_unlock(&psa->serializers.mutex);
 
+    celixThreadMutex_lock(&psa->protocols.mutex);
+    iter = hashMapIterator_construct(psa->protocols.map);
+    while (hashMapIterator_hasNext(&iter)) {
+        psa_tcp_protocol_entry_t *entry = hashMapIterator_nextValue(&iter);
+        free(entry);
+    }
+    celixThreadMutex_unlock(&psa->protocols.mutex);
+    //note assuming al psa register services and service tracker are removed.
+    celixThreadMutex_destroy(&psa->endpointStore.mutex);
+    hashMap_destroy(psa->endpointStore.map, false, false);
+
     celixThreadMutex_destroy(&psa->topicSenders.mutex);
     hashMap_destroy(psa->topicSenders.map, true, false);
 
@@ -157,6 +199,10 @@ void pubsub_websocketAdmin_destroy(pubsub_websocket_admin_t *psa) {
 
     celixThreadMutex_destroy(&psa->serializers.mutex);
     hashMap_destroy(psa->serializers.map, false, false);
+    celixThreadMutex_destroy(&psa->protocols.mutex);
+    hashMap_destroy(psa->protocols.map, false, false);
+
+   // free(psa->ipAddress);
 
     free(psa);
 }
@@ -231,13 +277,84 @@ void pubsub_websocketAdmin_removeSerializerSvc(void *handle, void *svc, const ce
     }
 }
 
+void pubsub_websocketAdmin_addProtocolSvc(void *handle, void *svc, const celix_properties_t *props) {
+    pubsub_websocket_admin_t *psa = handle;
+
+    const char *protType = celix_properties_get(props, PUBSUB_PROTOCOL_TYPE_KEY, NULL);
+    long svcId = celix_properties_getAsLong(props, OSGI_FRAMEWORK_SERVICE_ID, -1L);
+
+    if (protType == NULL) {
+        L_INFO("[PSA_ZMQ] Ignoring protocol service without %s property", PUBSUB_PROTOCOL_TYPE_KEY);
+        return;
+    }
+
+    celixThreadMutex_lock(&psa->protocols.mutex);
+    psa_tcp_protocol_entry_t *entry = hashMap_get(psa->protocols.map, (void *) svcId);
+    if (entry == NULL) {
+        entry = calloc(1, sizeof(*entry));
+        entry->protType = protType;
+        entry->svcId = svcId;
+        entry->svc = svc;
+        hashMap_put(psa->protocols.map, (void *) svcId, entry);
+    }
+    celixThreadMutex_unlock(&psa->protocols.mutex);
+}
+
+void pubsub_websocketAdmin_removeProtocolSvc(void *handle, void *svc, const celix_properties_t *props) {
+    pubsub_websocket_admin_t *psa = handle;
+    long svcId = celix_properties_getAsLong(props, OSGI_FRAMEWORK_SERVICE_ID, -1L);
+
+    //remove protocol
+    // 1) First find entry and
+    // 2) loop and destroy all topic sender using the protocol and
+    // 3) loop and destroy all topic receivers using the protocol
+    // Note that it is the responsibility of the topology manager to create new topic senders/receivers
+
+    celixThreadMutex_lock(&psa->protocols.mutex);
+    psa_tcp_protocol_entry_t *entry = hashMap_remove(psa->protocols.map, (void *) svcId);
+    celixThreadMutex_unlock(&psa->protocols.mutex);
+
+    if (entry != NULL) {
+        celixThreadMutex_lock(&psa->topicSenders.mutex);
+        hash_map_iterator_t iter = hashMapIterator_construct(psa->topicSenders.map);
+        while (hashMapIterator_hasNext(&iter)) {
+            hash_map_entry_t *senderEntry = hashMapIterator_nextEntry(&iter);
+            pubsub_websocket_topic_sender_t *sender = hashMapEntry_getValue(senderEntry);
+            if (sender != NULL && entry->svcId == pubsub_websocketTopicSender_protocolSvcId(sender)) {
+                char *key = hashMapEntry_getKey(senderEntry);
+                hashMapIterator_remove(&iter);
+                pubsub_websocketTopicSender_destroy(sender);
+                free(key);
+            }
+        }
+        celixThreadMutex_unlock(&psa->topicSenders.mutex);
+
+        celixThreadMutex_lock(&psa->topicReceivers.mutex);
+        iter = hashMapIterator_construct(psa->topicReceivers.map);
+        while (hashMapIterator_hasNext(&iter)) {
+            hash_map_entry_t *senderEntry = hashMapIterator_nextEntry(&iter);
+            pubsub_websocket_topic_receiver_t *receiver = hashMapEntry_getValue(senderEntry);
+            if (receiver != NULL && entry->svcId == pubsub_websocketTopicReceiver_protocolSvcId(receiver)) {
+                char *key = hashMapEntry_getKey(senderEntry);
+                hashMapIterator_remove(&iter);
+                pubsub_websocketTopicReceiver_destroy(receiver);
+                free(key);
+            }
+        }
+        celixThreadMutex_unlock(&psa->topicReceivers.mutex);
+
+        free(entry);
+    }
+}
+
+
 celix_status_t pubsub_websocketAdmin_matchPublisher(void *handle, long svcRequesterBndId, const celix_filter_t *svcFilter, celix_properties_t **topicProperties, double *outScore, long *outSerializerSvcId, long *outProtocolSvcId) {
     pubsub_websocket_admin_t *psa = handle;
     L_DEBUG("[PSA_WEBSOCKET] pubsub_websocketAdmin_matchPublisher");
     celix_status_t  status = CELIX_SUCCESS;
     double score = pubsubEndpoint_matchPublisher(psa->ctx, svcRequesterBndId, svcFilter->filterStr, PUBSUB_WEBSOCKET_ADMIN_TYPE,
-                                               psa->qosSampleScore, psa->qosControlScore, psa->defaultScore,
-                                               false, topicProperties, outSerializerSvcId, outProtocolSvcId);
+                                                 psa->qosSampleScore, psa->qosControlScore, psa->defaultScore, true,
+                                                 topicProperties, outSerializerSvcId, outProtocolSvcId);
     *outScore = score;
 
     return status;
@@ -248,8 +365,8 @@ celix_status_t pubsub_websocketAdmin_matchSubscriber(void *handle, long svcProvi
     L_DEBUG("[PSA_WEBSOCKET] pubsub_websocketAdmin_matchSubscriber");
     celix_status_t  status = CELIX_SUCCESS;
     double score = pubsubEndpoint_matchSubscriber(psa->ctx, svcProviderBndId, svcProperties, PUBSUB_WEBSOCKET_ADMIN_TYPE,
-                                                psa->qosSampleScore, psa->qosControlScore, psa->defaultScore,
-                                                false, topicProperties, outSerializerSvcId, outProtocolSvcId);
+                                                  psa->qosSampleScore, psa->qosControlScore, psa->defaultScore, true,
+                                                  topicProperties, outSerializerSvcId, outProtocolSvcId);
     if (outScore != NULL) {
         *outScore = score;
     }
@@ -260,7 +377,7 @@ celix_status_t pubsub_websocketAdmin_matchDiscoveredEndpoint(void *handle, const
     pubsub_websocket_admin_t *psa = handle;
     L_DEBUG("[PSA_WEBSOCKET] pubsub_websocketAdmin_matchEndpoint");
     celix_status_t  status = CELIX_SUCCESS;
-    bool match = pubsubEndpoint_match(psa->ctx, endpoint, PUBSUB_WEBSOCKET_ADMIN_TYPE, false, NULL, NULL);
+    bool match = pubsubEndpoint_match(psa->ctx, endpoint, PUBSUB_WEBSOCKET_ADMIN_TYPE, true, NULL, NULL);
     if (outMatch != NULL) {
         *outMatch = match;
     }
@@ -277,25 +394,28 @@ celix_status_t pubsub_websocketAdmin_setupTopicSender(void *handle, const char *
     //4) set outPublisherEndpoint
 
     celix_properties_t *newEndpoint = NULL;
-
     char *key = pubsubEndpoint_createScopeTopicKey(scope, topic);
-
     celixThreadMutex_lock(&psa->serializers.mutex);
+    celixThreadMutex_lock(&psa->protocols.mutex);
     celixThreadMutex_lock(&psa->topicSenders.mutex);
     pubsub_websocket_topic_sender_t *sender = hashMap_get(psa->topicSenders.map, key);
     if (sender == NULL) {
         psa_websocket_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serializerSvcId);
-        if (serEntry != NULL) {
-            sender = pubsub_websocketTopicSender_create(psa->ctx, psa->log, scope, topic, serializerSvcId, serEntry->svc);
+        psa_tcp_protocol_entry_t *protEntry = hashMap_get(psa->protocols.map, (void *) protocolSvcId);
+        if (serEntry != NULL && protEntry != NULL) {
+            sender = pubsub_websocketTopicSender_create(psa->ctx, psa->log, scope, topic, topicProperties,
+                                                        &psa->endpointStore, serializerSvcId, serEntry->svc, protocolSvcId,
+                                                        protEntry->svc);
         }
         if (sender != NULL) {
             const char *psaType = PUBSUB_WEBSOCKET_ADMIN_TYPE;
             const char *serType = serEntry->serType;
+            const char *protType = protEntry->protType;
             newEndpoint = pubsubEndpoint_create(psa->fwUUID, scope, topic, PUBSUB_PUBLISHER_ENDPOINT_TYPE, psaType,
-                                                serType, NULL, NULL);
-
-            //Set endpoint visibility to local because the http server handles discovery
-            celix_properties_set(newEndpoint, PUBSUB_ENDPOINT_VISIBILITY, PUBSUB_ENDPOINT_LOCAL_VISIBILITY);
+                                                serType, protType, NULL);
+            celix_properties_set(newEndpoint, PUBSUB_WEBSOCKET_URL_KEY, pubsub_websocketTopicSender_url(sender));
+            celix_properties_setBool(newEndpoint, PUBSUB_WEBSOCKET_STATIC_CONFIGURED, pubsub_websocketTopicSender_isStatic(sender));
+            celix_properties_set(newEndpoint, PUBSUB_ENDPOINT_VISIBILITY, PUBSUB_ENDPOINT_SYSTEM_VISIBILITY);
 
             //if available also set container name
             const char *cn = celix_bundleContext_getProperty(psa->ctx, "CELIX_CONTAINER_NAME", NULL);
@@ -312,6 +432,7 @@ celix_status_t pubsub_websocketAdmin_setupTopicSender(void *handle, const char *
         L_ERROR("[PSA_WEBSOCKET] Cannot setup already existing TopicSender for scope/topic %s/%s!", scope == NULL ? "(null)" : scope, topic);
     }
     celixThreadMutex_unlock(&psa->topicSenders.mutex);
+    celixThreadMutex_unlock(&psa->protocols.mutex);
     celixThreadMutex_unlock(&psa->serializers.mutex);
 
     if (newEndpoint != NULL && outPublisherEndpoint != NULL) {
@@ -335,6 +456,7 @@ celix_status_t pubsub_websocketAdmin_teardownTopicSender(void *handle, const cha
         char *mapKey = hashMapEntry_getKey(entry);
         pubsub_websocket_topic_sender_t *sender = hashMap_remove(psa->topicSenders.map, key);
         free(mapKey);
+        //TODO disconnect endpoints to sender. note is this needed for a tcp topic sender?
         pubsub_websocketTopicSender_destroy(sender);
     } else {
         L_ERROR("[PSA_WEBSOCKET] Cannot teardown TopicSender with scope/topic %s/%s. Does not exists", scope == NULL ? "(null)" : scope, topic);
@@ -352,20 +474,25 @@ celix_status_t pubsub_websocketAdmin_setupTopicReceiver(void *handle, const char
 
     char *key = pubsubEndpoint_createScopeTopicKey(scope, topic);
     celixThreadMutex_lock(&psa->serializers.mutex);
+    celixThreadMutex_lock(&psa->protocols.mutex);
     celixThreadMutex_lock(&psa->topicReceivers.mutex);
     pubsub_websocket_topic_receiver_t *receiver = hashMap_get(psa->topicReceivers.map, key);
     if (receiver == NULL) {
         psa_websocket_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serializerSvcId);
-        if (serEntry != NULL) {
-            receiver = pubsub_websocketTopicReceiver_create(psa->ctx, psa->log, scope, topic, topicProperties, serializerSvcId, serEntry->svc);
+        psa_tcp_protocol_entry_t *protEntry = hashMap_get(psa->protocols.map, (void *) protocolSvcId);
+        if (serEntry != NULL && protEntry != NULL) {
+            receiver = pubsub_websocketTopicReceiver_create(psa->ctx, psa->log, scope, topic, topicProperties,
+                                                            &psa->endpointStore, serializerSvcId, serEntry->svc,
+                                                            protocolSvcId, protEntry->svc);
         } else {
-            L_ERROR("[PSA_WEBSOCKET] Cannot find serializer for TopicSender %s/%s", scope == NULL ? "(null)" : scope, topic);
+            L_ERROR("[PSA_WEBSOCKET] Cannot find serializer or protoco for TopicSender %s/%s", scope == NULL ? "(null)" : scope, topic);
         }
         if (receiver != NULL) {
             const char *psaType = PUBSUB_WEBSOCKET_ADMIN_TYPE;
             const char *serType = serEntry->serType;
+            const char *protType = protEntry->protType;
             newEndpoint = pubsubEndpoint_create(psa->fwUUID, scope, topic,
-                                                PUBSUB_SUBSCRIBER_ENDPOINT_TYPE, psaType, serType, NULL, NULL);
+                                                PUBSUB_SUBSCRIBER_ENDPOINT_TYPE, psaType, serType, protType, NULL);
 
             //Set endpoint visibility to local because the http server handles discovery
             celix_properties_set(newEndpoint, PUBSUB_ENDPOINT_VISIBILITY, PUBSUB_ENDPOINT_LOCAL_VISIBILITY);
@@ -385,6 +512,7 @@ celix_status_t pubsub_websocketAdmin_setupTopicReceiver(void *handle, const char
         L_ERROR("[PSA_WEBSOCKET] Cannot setup already existing TopicReceiver for scope/topic %s/%s!", scope == NULL ? "(null)" : scope, topic);
     }
     celixThreadMutex_unlock(&psa->topicReceivers.mutex);
+    celixThreadMutex_unlock(&psa->protocols.mutex);
     celixThreadMutex_unlock(&psa->serializers.mutex);
 
     if (receiver != NULL && newEndpoint != NULL) {
@@ -392,8 +520,7 @@ celix_status_t pubsub_websocketAdmin_setupTopicReceiver(void *handle, const char
         hash_map_iterator_t iter = hashMapIterator_construct(psa->discoveredEndpoints.map);
         while (hashMapIterator_hasNext(&iter)) {
             celix_properties_t *endpoint = hashMapIterator_nextValue(&iter);
-            const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
-            if (type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0 && pubsubEndpoint_matchWithTopicAndScope(endpoint, topic, scope)) {
+            if (pubsub_websocketAdmin_endpointIsPublisher(endpoint) && pubsubEndpoint_matchWithTopicAndScope(endpoint, topic, scope)) {
                 pubsub_websocketAdmin_connectEndpointToReceiver(psa, receiver, endpoint);
             }
         }
@@ -433,21 +560,15 @@ static celix_status_t pubsub_websocketAdmin_connectEndpointToReceiver(pubsub_web
     //note can be called with discoveredEndpoint.mutex lock
     celix_status_t status = CELIX_SUCCESS;
 
-    const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
-    const char *sockAddress = celix_properties_get(endpoint, PUBSUB_WEBSOCKET_ADDRESS_KEY, NULL);
-    long sockPort = celix_properties_getAsLong(endpoint, PUBSUB_WEBSOCKET_PORT_KEY, -1L);
+    const char *url = celix_properties_get(endpoint, PUBSUB_WEBSOCKET_URL_KEY, NULL);
 
-    bool publisher = type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0;
-
-    if (publisher && (sockAddress == NULL || sockPort < 0)) {
-        L_WARN("[PSA WEBSOCKET] Error got endpoint without websocket address/port or endpoint type. Properties:");
-        const char *key = NULL;
-        CELIX_PROPERTIES_FOR_EACH(endpoint, key) {
-            L_WARN("[PSA WEBSOCKET] |- %s=%s\n", key, celix_properties_get(endpoint, key, NULL));
-        }
+    if (url == NULL) {
+        const char *admin = celix_properties_get(endpoint, PUBSUB_ENDPOINT_ADMIN_TYPE, NULL);
+        const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
+        L_WARN("[PSA_WEBSOCKET] Error got endpoint without a url (admin: %s, type: %s)", admin, type);
         status = CELIX_BUNDLE_EXCEPTION;
     } else {
-        pubsub_websocketTopicReceiver_connectTo(receiver, sockAddress, sockPort);
+        pubsub_websocketTopicReceiver_connectTo(receiver, url);
     }
 
     return status;
@@ -456,9 +577,7 @@ static celix_status_t pubsub_websocketAdmin_connectEndpointToReceiver(pubsub_web
 celix_status_t pubsub_websocketAdmin_addDiscoveredEndpoint(void *handle, const celix_properties_t *endpoint) {
     pubsub_websocket_admin_t *psa = handle;
 
-    const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
-
-    if (type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0) {
+    if (pubsub_websocketAdmin_endpointIsPublisher(endpoint)) {
         celixThreadMutex_lock(&psa->topicReceivers.mutex);
         hash_map_iterator_t iter = hashMapIterator_construct(psa->topicReceivers.map);
         while (hashMapIterator_hasNext(&iter)) {
@@ -485,28 +604,13 @@ static celix_status_t pubsub_websocketAdmin_disconnectEndpointFromReceiver(pubsu
     //note can be called with discoveredEndpoint.mutex lock
     celix_status_t status = CELIX_SUCCESS;
 
-    const char *scope = pubsub_websocketTopicReceiver_scope(receiver);
-    const char *topic = pubsub_websocketTopicReceiver_topic(receiver);
+    const char *url = celix_properties_get(endpoint, PUBSUB_WEBSOCKET_URL_KEY, NULL);
 
-    const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
-    const char *eScope = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_SCOPE, NULL);
-    const char *eTopic = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_NAME, NULL);
-    const char *sockAddress = celix_properties_get(endpoint, PUBSUB_WEBSOCKET_ADDRESS_KEY, NULL);
-    long sockPort = celix_properties_getAsLong(endpoint, PUBSUB_WEBSOCKET_PORT_KEY, -1L);
-
-    bool publisher = type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0;
-
-    if (publisher && (sockAddress == NULL || sockPort < 0)) {
-        L_WARN("[PSA WEBSOCKET] Error got endpoint without websocket address/port or endpoint type. Properties:");
-        const char *key = NULL;
-        CELIX_PROPERTIES_FOR_EACH(endpoint, key) {
-            L_WARN("[PSA WEBSOCKET] |- %s=%s\n", key, celix_properties_get(endpoint, key, NULL));
-        }
+    if (url == NULL) {
+        L_WARN("[PSA_WEBSOCKET] Error got endpoint without url");
         status = CELIX_BUNDLE_EXCEPTION;
-    } else if (eTopic != NULL && strncmp(eTopic, topic, 1024 * 1024) == 0) {
-        if ((scope == NULL && eScope == NULL) || (scope != NULL && eScope != NULL && strncmp(eScope, scope, 1024 * 1024) == 0)) {
-            pubsub_websocketTopicReceiver_disconnectFrom(receiver, sockAddress, sockPort);
-        }
+    } else {
+        pubsub_websocketTopicReceiver_disconnectFrom(receiver, url);
     }
 
     return status;
@@ -515,9 +619,7 @@ static celix_status_t pubsub_websocketAdmin_disconnectEndpointFromReceiver(pubsu
 celix_status_t pubsub_websocketAdmin_removeDiscoveredEndpoint(void *handle, const celix_properties_t *endpoint) {
     pubsub_websocket_admin_t *psa = handle;
 
-    const char *type = celix_properties_get(endpoint, PUBSUB_ENDPOINT_TYPE, NULL);
-
-    if (type != NULL && strncmp(PUBSUB_PUBLISHER_ENDPOINT_TYPE, type, strlen(PUBSUB_PUBLISHER_ENDPOINT_TYPE)) == 0) {
+    if (pubsub_websocketAdmin_endpointIsPublisher(endpoint)) {
         celixThreadMutex_lock(&psa->topicReceivers.mutex);
         hash_map_iterator_t iter = hashMapIterator_construct(psa->topicReceivers.map);
         while (hashMapIterator_hasNext(&iter)) {
@@ -543,36 +645,64 @@ celix_status_t pubsub_websocketAdmin_removeDiscoveredEndpoint(void *handle, cons
 bool pubsub_websocketAdmin_executeCommand(void *handle, const char *commandLine __attribute__((unused)), FILE *out, FILE *errStream __attribute__((unused))) {
     pubsub_websocket_admin_t *psa = handle;
 
+
+    char *line = celix_utils_strdup(commandLine);
+    char *token = line;
+    strtok_r(line, " ", &token); //first token is command name
+    strtok_r(NULL, " ", &token); //second token is sub command
+
+    if (celix_utils_stringEquals(token, "nr_of_receivers")) {
+        celixThreadMutex_lock(&psa->topicReceivers.mutex);
+        fprintf(out,"%i\n", hashMap_size(psa->topicReceivers.map));
+        celixThreadMutex_unlock(&psa->topicReceivers.mutex);
+    }
+    if (celix_utils_stringEquals(token, "nr_of_senders")) {
+        celixThreadMutex_lock(&psa->topicSenders.mutex);
+        fprintf(out, "%i\n", hashMap_size(psa->topicSenders.map));
+        celixThreadMutex_unlock(&psa->topicSenders.mutex);
+    }
+
     fprintf(out, "\n");
     fprintf(out, "Topic Senders:\n");
     celixThreadMutex_lock(&psa->serializers.mutex);
+    celixThreadMutex_lock(&psa->protocols.mutex);
     celixThreadMutex_lock(&psa->topicSenders.mutex);
     hash_map_iterator_t iter = hashMapIterator_construct(psa->topicSenders.map);
     while (hashMapIterator_hasNext(&iter)) {
         pubsub_websocket_topic_sender_t *sender = hashMapIterator_nextValue(&iter);
         long serSvcId = pubsub_websocketTopicSender_serializerSvcId(sender);
         psa_websocket_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serSvcId);
+        long protSvcId = pubsub_websocketTopicSender_protocolSvcId(sender);
+        psa_tcp_protocol_entry_t *protEntry = hashMap_get(psa->protocols.map, (void *) protSvcId);
         const char *serType = serEntry == NULL ? "!Error!" : serEntry->serType;
+        const char *protType = protEntry == NULL ? "!Error!" : protEntry->protType;
         const char *scope = pubsub_websocketTopicSender_scope(sender);
         const char *topic = pubsub_websocketTopicSender_topic(sender);
         const char *url = pubsub_websocketTopicSender_url(sender);
+        //const char *postUrl = pubsub_websocketTopicSender_isStatic(sender) ? " (static)" : "";
         fprintf(out, "|- Topic Sender %s/%s\n", scope == NULL ? "(null)" : scope, topic);
         fprintf(out, "   |- serializer type = %s\n", serType);
+        fprintf(out, "   |- protocol type = %s\n", protType);
         fprintf(out, "   |- url             = %s\n", url);
     }
     celixThreadMutex_unlock(&psa->topicSenders.mutex);
+    celixThreadMutex_unlock(&psa->protocols.mutex);
     celixThreadMutex_unlock(&psa->serializers.mutex);
 
     fprintf(out, "\n");
     fprintf(out, "\nTopic Receivers:\n");
     celixThreadMutex_lock(&psa->serializers.mutex);
+    celixThreadMutex_lock(&psa->protocols.mutex);
     celixThreadMutex_lock(&psa->topicReceivers.mutex);
     iter = hashMapIterator_construct(psa->topicReceivers.map);
     while (hashMapIterator_hasNext(&iter)) {
         pubsub_websocket_topic_receiver_t *receiver = hashMapIterator_nextValue(&iter);
         long serSvcId = pubsub_websocketTopicReceiver_serializerSvcId(receiver);
         psa_websocket_serializer_entry_t *serEntry = hashMap_get(psa->serializers.map, (void*)serSvcId);
+        long protSvcId = pubsub_websocketTopicReceiver_protocolSvcId(receiver);
+        psa_tcp_protocol_entry_t *protEntry = hashMap_get(psa->protocols.map, (void *) protSvcId);
         const char *serType = serEntry == NULL ? "!Error!" : serEntry->serType;
+        const char *protType = protEntry == NULL ? "!Error!" : protEntry->protType;
         const char *scope = pubsub_websocketTopicReceiver_scope(receiver);
         const char *topic = pubsub_websocketTopicReceiver_topic(receiver);
         const char *urlEndp = pubsub_websocketTopicReceiver_url(receiver);
@@ -583,21 +713,23 @@ bool pubsub_websocketAdmin_executeCommand(void *handle, const char *commandLine 
 
         fprintf(out, "|- Topic Receiver %s/%s\n", scope == NULL ? "(null)" : scope, topic);
         fprintf(out, "   |- serializer type      = %s\n", serType);
-        fprintf(out, "   |- url                  = %s\n", urlEndp);
+        fprintf(out, "   |- protocol type = %s\n", protType);
+        fprintf(out, "   |- url EndPoint  = %s\n", urlEndp);
         for (int i = 0; i < celix_arrayList_size(connected); ++i) {
             char *url = celix_arrayList_get(connected, i);
-            fprintf(out, "   |- connected endpoint   = %s\n", url);
+            fprintf(out, "   |- connected url   = %s\n", url);
             free(url);
         }
         for (int i = 0; i < celix_arrayList_size(unconnected); ++i) {
             char *url = celix_arrayList_get(unconnected, i);
-            fprintf(out, "   |- unconnected endpoint = %s\n", url);
+            fprintf(out, "   |- unconnected url = %s\n", url);
             free(url);
         }
         celix_arrayList_destroy(connected);
         celix_arrayList_destroy(unconnected);
     }
     celixThreadMutex_unlock(&psa->topicReceivers.mutex);
+    celixThreadMutex_unlock(&psa->protocols.mutex);
     celixThreadMutex_unlock(&psa->serializers.mutex);
     fprintf(out, "\n");
 

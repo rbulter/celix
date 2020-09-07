@@ -17,15 +17,15 @@
  * under the License.
  */
 
-#include <pubsub_serializer.h>
+#include <stdint.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <pubsub/subscriber.h>
 #include <memory.h>
 #include <pubsub_constants.h>
-#include <assert.h>
-#include <pubsub_endpoint.h>
 #include <arpa/inet.h>
 #include <celix_log_helper.h>
+#include <pubsub_serializer.h>
 #include <math.h>
 #include "pubsub_websocket_topic_receiver.h"
 #include "pubsub_psa_websocket_constants.h"
@@ -35,7 +35,9 @@
 #include <http_admin/api.h>
 #include <jansson.h>
 #include <pubsub_utils.h>
+#include "pubsub_interceptors_handler.h"
 #include <celix_api.h>
+#include "pubsub_websocket_handler.h"
 
 #ifndef UUID_STR_LEN
 #define UUID_STR_LEN 37
@@ -66,21 +68,23 @@ struct pubsub_websocket_topic_receiver {
     celix_log_helper_t *logHelper;
     long serializerSvcId;
     pubsub_serializer_service_t *serializer;
+    long protocolSvcId;
+    pubsub_protocol_service_t *protocol;
     char *scope;
     char *topic;
+    pubsub_interceptors_handler_t *interceptorsHandler;
     char scopeAndTopicFilter[5];
     char *uri;
-
     celix_websocket_service_t sockSvc;
     long svcId;
-
+    size_t timeout;
     pubsub_websocket_rcv_buffer_t recvBuffer;
 
     struct {
         celix_thread_t thread;
         celix_thread_mutex_t mutex;
         bool running;
-    } recvThread;
+    } thread;
 
     struct {
         celix_thread_mutex_t mutex;
@@ -97,10 +101,8 @@ struct pubsub_websocket_topic_receiver {
 };
 
 typedef struct psa_websocket_requested_connection_entry {
-    char *key; //host:port
-    char *socketAddress;
-    long socketPort;
-    char *uri;
+    pubsub_websocket_topic_receiver_t *parent;
+    char *url;
     struct mg_connection *sockConnection;
     int connectRetryCount;
     bool connected;
@@ -120,40 +122,48 @@ static void pubsub_websocketTopicReceiver_removeSubscriber(void *handle, void *s
 static void* psa_websocket_recvThread(void * data);
 static void psa_websocket_connectToAllRequestedConnections(pubsub_websocket_topic_receiver_t *receiver);
 static void psa_websocket_initializeAllSubscribers(pubsub_websocket_topic_receiver_t *receiver);
-static void *psa_websocket_getMsgTypeIdFromFqn(const char *fqn, hash_map_t *msg_type_id_map);
-
-static void psa_websocketTopicReceiver_ready(struct mg_connection *connection, void *handle);
-static int psa_websocketTopicReceiver_data(struct mg_connection *connection, int op_code, char *data, size_t length, void *handle);
-static void psa_websocketTopicReceiver_close(const struct mg_connection *connection, void *handle);
-
+static bool psa_websocketTopicReceiver_checkVersion(version_pt msgVersion, uint16_t major, uint16_t minor);
 
 pubsub_websocket_topic_receiver_t* pubsub_websocketTopicReceiver_create(celix_bundle_context_t *ctx,
                                                               celix_log_helper_t *logHelper,
                                                               const char *scope,
                                                               const char *topic,
                                                               const celix_properties_t *topicProperties,
+                                                              pubsub_websocket_endPointStore_t *endPointStore,
                                                               long serializerSvcId,
-                                                              pubsub_serializer_service_t *serializer) {
+                                                              pubsub_serializer_service_t *serializer,
+                                                              long protocolSvcId,
+                                                              pubsub_protocol_service_t *protocol) {
     pubsub_websocket_topic_receiver_t *receiver = calloc(1, sizeof(*receiver));
     receiver->ctx = ctx;
     receiver->logHelper = logHelper;
     receiver->serializerSvcId = serializerSvcId;
     receiver->serializer = serializer;
+    receiver->protocolSvcId = protocolSvcId;
+    receiver->protocol = protocol;
     receiver->scope = scope == NULL ? NULL : strndup(scope, 1024 * 1024);
     receiver->topic = strndup(topic, 1024 * 1024);
     psa_websocket_setScopeAndTopicFilter(scope, topic, receiver->scopeAndTopicFilter);
 
+    pubsubInterceptorsHandler_create(ctx, scope, topic, &receiver->interceptorsHandler);
     receiver->uri = psa_websocket_createURI(scope, topic);
 
     if (receiver->uri != NULL) {
         celixThreadMutex_create(&receiver->subscribers.mutex, NULL);
         celixThreadMutex_create(&receiver->requestedConnections.mutex, NULL);
-        celixThreadMutex_create(&receiver->recvThread.mutex, NULL);
+        celixThreadMutex_create(&receiver->thread.mutex, NULL);
         celixThreadMutex_create(&receiver->recvBuffer.mutex, NULL);
 
         receiver->subscribers.map = hashMap_create(NULL, NULL, NULL, NULL);
         receiver->requestedConnections.map = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         arrayList_create(&receiver->recvBuffer.list);
+    }
+    if (receiver->uri != NULL) {
+        receiver->thread.running = true;
+        celixThread_create(&receiver->thread.thread, NULL, psa_websocket_recvThread, receiver);
+        char name[64];
+        snprintf(name, 64, "WEBSOCKET TR %s/%s", scope == NULL ? "(null)" : scope, topic);
+        celixThread_setName(&receiver->thread.thread, name);
     }
 
     //track subscribers
@@ -188,7 +198,7 @@ pubsub_websocket_topic_receiver_t* pubsub_websocketTopicReceiver_create(celix_bu
 
     const char *staticConnects = pubsub_getEnvironmentVariableWithScopeTopic(ctx, PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES_FOR, topic, scope);
     if(staticConnects == NULL) {
-        staticConnects = celix_properties_get(topicProperties, PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES, NULL);
+//        staticConnects = celix_properties_get(topicProperties, PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES, NULL);
     }
     if (staticConnects != NULL) {
         char *copy = strndup(staticConnects, 1024*1024);
@@ -212,14 +222,14 @@ pubsub_websocket_topic_receiver_t* pubsub_websocketTopicReceiver_create(celix_bu
 
             if (sockPort > 0) {
                 psa_websocket_requested_connection_entry_t *entry = calloc(1, sizeof(*entry));
-                entry->key = key;
-                entry->uri = strndup(receiver->uri, 1024 * 1024);
-                entry->socketAddress = sockAddr;
-                entry->socketPort = sockPort;
+                //entry->url = key;
+                //entry->uri = strndup(receiver->uri, 1024 * 1024);
+                //entry->socketAddress = sockAddr;
+                //entry->socketPort = sockPort;
                 entry->connected = false;
                 entry->statically = true;
                 entry->passive = false;
-                hashMap_put(receiver->requestedConnections.map, (void *) entry->key, entry);
+                hashMap_put(receiver->requestedConnections.map, (void *) entry->url, entry);
             } else {
                 L_WARN("[PSA_WEBSOCKET_TR] Invalid static socket address %s", addr);
                 free(key);
@@ -230,32 +240,29 @@ pubsub_websocket_topic_receiver_t* pubsub_websocketTopicReceiver_create(celix_bu
     }
 
 
-    if (receiver->uri != NULL) {
-        receiver->recvThread.running = true;
-        celixThread_create(&receiver->recvThread.thread, NULL, psa_websocket_recvThread, receiver);
-        char name[64];
-        snprintf(name, 64, "WEBSOCKET TR %s/%s", scope == NULL ? "(null)" : scope, topic);
-        celixThread_setName(&receiver->recvThread.thread, name);
-    }
+
 
     if (receiver->uri == NULL) {
-        free(receiver->scope);
+        if (receiver->scope != NULL) {
+            free(receiver->scope);
+        }
         free(receiver->topic);
         free(receiver);
         receiver = NULL;
         L_ERROR("[PSA_WEBSOCKET] Cannot create TopicReceiver for %s/%s", scope == NULL ? "(null)" : scope, topic);
     }
-
     return receiver;
 }
 
 void pubsub_websocketTopicReceiver_destroy(pubsub_websocket_topic_receiver_t *receiver) {
     if (receiver != NULL) {
 
-        celixThreadMutex_lock(&receiver->recvThread.mutex);
-        receiver->recvThread.running = false;
-        celixThreadMutex_unlock(&receiver->recvThread.mutex);
-        celixThread_join(receiver->recvThread.thread, NULL);
+        celixThreadMutex_lock(&receiver->thread.mutex);
+        if (receiver->thread.running) {
+            receiver->thread.running = false;
+            celixThreadMutex_unlock(&receiver->thread.mutex);
+            celixThread_join(receiver->thread.thread, NULL);
+        }
 
         celix_bundleContext_stopTracker(receiver->ctx, receiver->subscriberTrackerId);
 
@@ -285,10 +292,10 @@ void pubsub_websocketTopicReceiver_destroy(pubsub_websocket_topic_receiver_t *re
                 if(entry->connected) {
                     mg_close_connection(entry->sockConnection);
                 }
-                free(entry->uri);
-                free(entry->socketAddress);
-                free(entry->key);
-                free(entry);
+                //free(entry->uri);
+                //free(entry->socketAddress);
+                //free(entry->key);
+                //free(entry);
             }
         }
         hashMap_destroy(receiver->requestedConnections.map, false, false);
@@ -296,7 +303,7 @@ void pubsub_websocketTopicReceiver_destroy(pubsub_websocket_topic_receiver_t *re
 
         celixThreadMutex_destroy(&receiver->subscribers.mutex);
         celixThreadMutex_destroy(&receiver->requestedConnections.mutex);
-        celixThreadMutex_destroy(&receiver->recvThread.mutex);
+        celixThreadMutex_destroy(&receiver->thread.mutex);
 
         celixThreadMutex_destroy(&receiver->recvBuffer.mutex);
         int msgBufSize = celix_arrayList_size(receiver->recvBuffer.list);
@@ -309,7 +316,10 @@ void pubsub_websocketTopicReceiver_destroy(pubsub_websocket_topic_receiver_t *re
         celix_arrayList_destroy(receiver->recvBuffer.list);
 
         free(receiver->uri);
-        free(receiver->scope);
+        pubsubInterceptorsHandler_destroy(receiver->interceptorsHandler);
+        if (receiver->scope != NULL) {
+            free(receiver->scope);
+        }
         free(receiver->topic);
     }
     free(receiver);
@@ -329,13 +339,17 @@ long pubsub_websocketTopicReceiver_serializerSvcId(pubsub_websocket_topic_receiv
     return receiver->serializerSvcId;
 }
 
+long pubsub_websocketTopicReceiver_protocolSvcId(pubsub_websocket_topic_receiver_t *receiver) {
+    return receiver->protocolSvcId;
+}
+
 void pubsub_websocketTopicReceiver_listConnections(pubsub_websocket_topic_receiver_t *receiver, celix_array_list_t *connectedUrls, celix_array_list_t *unconnectedUrls) {
     celixThreadMutex_lock(&receiver->requestedConnections.mutex);
     hash_map_iterator_t iter = hashMapIterator_construct(receiver->requestedConnections.map);
     while (hashMapIterator_hasNext(&iter)) {
         psa_websocket_requested_connection_entry_t *entry = hashMapIterator_nextValue(&iter);
         char *url = NULL;
-        asprintf(&url, "%s:%li%s%s", entry->socketAddress, entry->socketPort, entry->statically ? " (static)" : "", entry->passive ? " (passive)" : "");
+        asprintf(&url, "%s:%s%s", entry->url, entry->statically ? " (static)" : "", entry->passive ? " (passive)" : "");
         if (entry->connected) {
             celix_arrayList_add(connectedUrls, url);
         } else {
@@ -346,53 +360,42 @@ void pubsub_websocketTopicReceiver_listConnections(pubsub_websocket_topic_receiv
 }
 
 
-void pubsub_websocketTopicReceiver_connectTo(pubsub_websocket_topic_receiver_t *receiver, const char *socketAddress, long socketPort) {
-    L_DEBUG("[PSA_WEBSOCKET] TopicReceiver %s/%s ('%s') connecting to websocket address %s:li", receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic, receiver->uri, socketAddress, socketPort);
+void pubsub_websocketTopicReceiver_connectTo(pubsub_websocket_topic_receiver_t *receiver, const char *url) {
+    L_DEBUG("[PSA_WEBSOCKET] TopicReceiver %s/%s ('%s') connecting to websocket address %s", receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic, receiver->uri, url);
 
-    char *key = NULL;
-    asprintf(&key, "%s:%li", socketAddress, socketPort);
+    L_DEBUG("[PSA_WEBSOCKET] TopicReceiver %s/%s connecting to websocket url %s", receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic, url);
 
     celixThreadMutex_lock(&receiver->requestedConnections.mutex);
-    psa_websocket_requested_connection_entry_t *entry = hashMap_get(receiver->requestedConnections.map, key);
+    psa_websocket_requested_connection_entry_t *entry = hashMap_get(receiver->requestedConnections.map, url);
     if (entry == NULL) {
         entry = calloc(1, sizeof(*entry));
-        entry->key = key;
-        entry->uri = strndup(receiver->uri, 1024 * 1024);
-        entry->socketAddress = strndup(socketAddress, 1024 * 1024);
-        entry->socketPort = socketPort;
+        entry->url = strndup(url, 1024 * 1024);
         entry->connected = false;
         entry->statically = false;
         entry->passive = false;
-        hashMap_put(receiver->requestedConnections.map, (void*)entry->key, entry);
+        entry->parent = receiver;
+        hashMap_put(receiver->requestedConnections.map, (void*)entry->url, entry);
         receiver->requestedConnections.allConnected = false;
-    } else {
-        free(key);
     }
     celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
 
     psa_websocket_connectToAllRequestedConnections(receiver);
 }
 
-void pubsub_websocketTopicReceiver_disconnectFrom(pubsub_websocket_topic_receiver_t *receiver, const char *socketAddress, long socketPort) {
-    L_DEBUG("[PSA_WEBSOCKET] TopicReceiver %s/%s ('%s') disconnect from websocket address %s:%li", receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic, receiver->uri, socketAddress, socketPort);
-
-    char *key = NULL;
-    asprintf(&key, "%s:%li", socketAddress, socketPort);
+void pubsub_websocketTopicReceiver_disconnectFrom(pubsub_websocket_topic_receiver_t *receiver, const char *url) {
+    L_DEBUG("[PSA_WEBSOCKET] TopicReceiver %s/%s disconnect from websocket url %s", receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic, url);
 
     celixThreadMutex_lock(&receiver->requestedConnections.mutex);
 
-    psa_websocket_requested_connection_entry_t *entry = hashMap_remove(receiver->requestedConnections.map, key);
+    psa_websocket_requested_connection_entry_t *entry = hashMap_remove(receiver->requestedConnections.map, url);
     if (entry != NULL && entry->connected) {
         mg_close_connection(entry->sockConnection);
     }
     if (entry != NULL) {
-        free(entry->socketAddress);
-        free(entry->uri);
-        free(entry->key);
+        free(entry->url);
         free(entry);
     }
     celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
-    free(key);
 }
 
 static void pubsub_websocketTopicReceiver_addSubscriber(void *handle, void *svc, const celix_properties_t *props, const celix_bundle_t *bnd) {
@@ -424,6 +427,8 @@ static void pubsub_websocketTopicReceiver_addSubscriber(void *handle, void *svc,
         entry = calloc(1, sizeof(*entry));
         entry->subscriberServices = hashMap_create(NULL, NULL, NULL, NULL);
         entry->initialized = false;
+        receiver->subscribers.allInitialized = false;
+
         hashMap_put(entry->subscriberServices, (void*)svcId, svc);
 
         int rc = receiver->serializer->createSerializerMap(receiver->serializer->handle, (celix_bundle_t*)bnd, &entry->msgTypes);
@@ -444,7 +449,6 @@ static void pubsub_websocketTopicReceiver_removeSubscriber(void *handle, void *s
     long bndId = celix_bundle_getId(bnd);
     long svcId = celix_properties_getAsLong(props, OSGI_FRAMEWORK_SERVICE_ID, -1);
 
-
     celixThreadMutex_lock(&receiver->subscribers.mutex);
     psa_websocket_subscriber_entry_t *entry = hashMap_get(receiver->subscribers.map, (void*)bndId);
     if (entry != NULL) {
@@ -463,117 +467,90 @@ static void pubsub_websocketTopicReceiver_removeSubscriber(void *handle, void *s
     celixThreadMutex_unlock(&receiver->subscribers.mutex);
 }
 
-static void * psa_websocket_getMsgTypeIdFromFqn(const char *fqn, hash_map_t *msg_type_id_map) {
-    void *msgTypeId = NULL;
-    if(fqn != NULL && msg_type_id_map != NULL) {
-        hash_map_iterator_t iter = hashMapIterator_construct(msg_type_id_map);
-        while (hashMapIterator_hasNext(&iter)) {
-            hash_map_entry_t *entry = hashMapIterator_nextEntry(&iter);
-            pubsub_msg_serializer_t *serializer = hashMapEntry_getValue(entry);
-            if(strcmp(serializer->msgName, fqn) == 0) {
-                msgTypeId =  hashMapEntry_getKey(entry);
-                return msgTypeId;
-            }
-        }
-    }
-
-    return msgTypeId;
-}
-
-static inline void processMsgForSubscriberEntry(pubsub_websocket_topic_receiver_t *receiver, psa_websocket_subscriber_entry_t* entry, pubsub_websocket_msg_header_t *hdr, const char* payload, size_t payloadSize) {
+static inline void
+processMsgForSubscriberEntry(pubsub_websocket_topic_receiver_t *receiver, psa_websocket_subscriber_entry_t *entry,
+                             const pubsub_protocol_message_t *message, bool *releaseMsg) {
     //NOTE receiver->subscribers.mutex locked
-    void *msgTypeId = psa_websocket_getMsgTypeIdFromFqn(hdr->id, entry->msgTypes);
-    pubsub_msg_serializer_t* msgSer = hashMap_get(entry->msgTypes, msgTypeId);
+    pubsub_msg_serializer_t *msgSer = hashMap_get(entry->msgTypes, (void *) (uintptr_t) (message->header.msgId));
 
-    if (msgSer!= NULL && msgTypeId != 0) {
+    if (msgSer != NULL) {
         void *deSerializedMsg = NULL;
-        bool validVersion = psa_websocket_checkVersion(msgSer->msgVersion, hdr);
+        bool validVersion = psa_websocketTopicReceiver_checkVersion(msgSer->msgVersion, message->header.msgMajorVersion,
+                                                                    message->header.msgMinorVersion);
         if (validVersion) {
             struct iovec deSerializeBuffer;
-            deSerializeBuffer.iov_base = (void *)payload;
-            deSerializeBuffer.iov_len  = payloadSize;
-            celix_status_t status = msgSer->deserialize(msgSer->handle, &deSerializeBuffer, 0, &deSerializedMsg);
+            deSerializeBuffer.iov_base = message->payload.payload;
+            deSerializeBuffer.iov_len = message->payload.length;
+            celix_status_t status = msgSer->deserialize(msgSer->handle, &deSerializeBuffer, 1, &deSerializedMsg);
+            // When received payload pointer is the same as deserializedMsg, set ownership of pointer to topic receiver
+            if (message->payload.payload == deSerializedMsg) {
+                *releaseMsg = true;
+            }
 
             if (status == CELIX_SUCCESS) {
-                hash_map_iterator_t iter = hashMapIterator_construct(entry->subscriberServices);
+                const char *msgType = msgSer->msgName;
+                uint32_t msgId = message->header.msgId;
+                celix_properties_t *metadata = message->metadata.metadata;
+                bool cont = pubsubInterceptorHandler_invokePreReceive(receiver->interceptorsHandler, msgType, msgId, deSerializedMsg, &metadata);
                 bool release = true;
-                while (hashMapIterator_hasNext(&iter)) {
-                    pubsub_subscriber_t *svc = hashMapIterator_nextValue(&iter);
-                    svc->receive(svc->handle, msgSer->msgName, msgSer->msgId, deSerializedMsg, NULL, &release);
-                    if (!release && hashMapIterator_hasNext(&iter)) {
-                        //receive function has taken ownership and still more receive function to come ..
-                        //deserialize again for new message
-                        status = msgSer->deserialize(msgSer->handle, &deSerializeBuffer, 0, &deSerializedMsg);
-                        if (status != CELIX_SUCCESS) {
-                            L_WARN("[PSA_WEBSOCKET_TR] Cannot deserialize msg type %s for scope/topic %s/%s", msgSer->msgName, receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic);
-                            break;
+                if (cont) {
+                    hash_map_iterator_t iter = hashMapIterator_construct(entry->subscriberServices);
+                    while (hashMapIterator_hasNext(&iter)) {
+                        pubsub_subscriber_t *svc = hashMapIterator_nextValue(&iter);
+                        svc->receive(svc->handle, msgSer->msgName, msgSer->msgId, deSerializedMsg, message->metadata.metadata, &release);
+                        pubsubInterceptorHandler_invokePostReceive(receiver->interceptorsHandler, msgType, msgId, deSerializedMsg, metadata);
+                        if (!release && hashMapIterator_hasNext(&iter)) {
+                            //receive function has taken ownership and still more receive function to come ..
+                            //deserialize again for new message
+                            status = msgSer->deserialize(msgSer->handle, &deSerializeBuffer, 1, &deSerializedMsg);
+                            if (status != CELIX_SUCCESS) {
+                                L_WARN("[PSA_WEBSOCKET_TR] Cannot deserialize msg type %s for scope/topic %s/%s",
+                                       msgSer->msgName,
+                                       receiver->scope == NULL ? "(null)" : receiver->scope,
+                                       receiver->topic);
+                                break;
+                            }
+                            release = true;
                         }
-                        release = true;
+                    }
+                    if (release) {
+                        msgSer->freeDeserializeMsg(msgSer->handle, deSerializedMsg);
+                    }
+                    if (message->metadata.metadata) {
+                        celix_properties_destroy(message->metadata.metadata);
                     }
                 }
-                if (release) {
-                    msgSer->freeDeserializeMsg(msgSer->handle, deSerializedMsg);
-                }
             } else {
-                L_WARN("[PSA_WEBSOCKET_TR] Cannot deserialize msg type %s for scope/topic %s/%s", msgSer->msgName, receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic);
+                L_WARN("[PSA_WEBSOCKET_TR] Cannot deserialize msg type %s for scope/topic %s/%s", msgSer->msgName,
+                       receiver->scope == NULL ? "(null)" : receiver->scope, receiver->topic);
             }
         }
     } else {
-        L_WARN("[PSA_WEBSOCKET_TR] Cannot find serializer for type id 0x%X, fqn %s", msgTypeId, hdr->id);
+        L_WARN("[PSA_WEBSOCKET_TR] Cannot find serializer for type id 0x%X. Received payload size is %u.", message->header.msgId, message->payload.length);
     }
 }
 
-static inline void processMsg(pubsub_websocket_topic_receiver_t *receiver, const char *msg, size_t msgSize) {
-    json_error_t error;
-    json_t *jsMsg = json_loadb(msg, msgSize, 0, &error);
-    if(jsMsg != NULL) {
-        json_t *jsId = json_object_get(jsMsg, "id");
-        json_t *jsMajor = json_object_get(jsMsg, "major");
-        json_t *jsMinor = json_object_get(jsMsg, "minor");
-        json_t *jsSeqNr = json_object_get(jsMsg, "seqNr");
-        json_t *jsData = json_object_get(jsMsg, "data");
 
-        if (jsId && jsMajor && jsMinor && jsSeqNr && jsData) {
-            pubsub_websocket_msg_header_t hdr;
-            hdr.id = json_string_value(jsId);
-            hdr.major = (uint8_t) json_integer_value(jsMajor);
-            hdr.minor = (uint8_t) json_integer_value(jsMinor);
-            hdr.seqNr = (uint32_t) json_integer_value(jsSeqNr);
-            const char *payload = json_dumps(jsData, 0);
-            size_t payloadSize = strlen(payload);
-            printf("Received msg: id %s\tmajor %u\tminor %u\tseqNr %u\tdata %s\n", hdr.id, hdr.major, hdr.minor, hdr.seqNr, payload);
 
-            celixThreadMutex_lock(&receiver->subscribers.mutex);
-            hash_map_iterator_t iter = hashMapIterator_construct(receiver->subscribers.map);
-            while (hashMapIterator_hasNext(&iter)) {
-                psa_websocket_subscriber_entry_t *entry = hashMapIterator_nextValue(&iter);
-                if (entry != NULL) {
-                    processMsgForSubscriberEntry(receiver, entry, &hdr, payload, payloadSize);
-                }
-            }
-            celixThreadMutex_unlock(&receiver->subscribers.mutex);
-            free((void *) payload);
-        } else {
-            L_WARN("[PSA_WEBSOCKET_TR] Received unsupported message: "
-                   "ID = %s, major = %d, minor = %d, seqNr = %d, data valid? %s",
-                   (jsId ? json_string_value(jsId) : "ERROR"),
-                   json_integer_value(jsMajor), json_integer_value(jsMinor),
-                   json_integer_value(jsSeqNr), (jsData ? "TRUE" : "FALSE"));
+static inline void processMsg(void *handle, const pubsub_protocol_message_t *message, bool *release) {
+    pubsub_websocket_topic_receiver_t *receiver = handle;
+    celixThreadMutex_lock(&receiver->subscribers.mutex);
+    hash_map_iterator_t iter = hashMapIterator_construct(receiver->subscribers.map);
+    while (hashMapIterator_hasNext(&iter)) {
+        psa_websocket_subscriber_entry_t *entry = hashMapIterator_nextValue(&iter);
+        if (entry != NULL) {
+            processMsgForSubscriberEntry(receiver, entry, message, release);
         }
-        json_decref(jsMsg);
-    } else {
-        L_WARN("[PSA_WEBSOCKET_TR] Failed to load websocket JSON message, error line: %d, error message: %s", error.line, error.text);
-        return;
     }
-
+    celixThreadMutex_unlock(&receiver->subscribers.mutex);
 }
 
-static void* psa_websocket_recvThread(void * data) {
+static void *psa_websocket_recvThread(void *data) {
     pubsub_websocket_topic_receiver_t *receiver = data;
 
-    celixThreadMutex_lock(&receiver->recvThread.mutex);
-    bool running = receiver->recvThread.running;
-    celixThreadMutex_unlock(&receiver->recvThread.mutex);
+    celixThreadMutex_lock(&receiver->thread.mutex);
+    bool running = receiver->thread.running;
+    celixThreadMutex_unlock(&receiver->thread.mutex);
 
     celixThreadMutex_lock(&receiver->requestedConnections.mutex);
     bool allConnected = receiver->requestedConnections.allConnected;
@@ -583,7 +560,6 @@ static void* psa_websocket_recvThread(void * data) {
     bool allInitialized = receiver->subscribers.allInitialized;
     celixThreadMutex_unlock(&receiver->subscribers.mutex);
 
-
     while (running) {
         if (!allConnected) {
             psa_websocket_connectToAllRequestedConnections(receiver);
@@ -591,21 +567,11 @@ static void* psa_websocket_recvThread(void * data) {
         if (!allInitialized) {
             psa_websocket_initializeAllSubscribers(receiver);
         }
+        usleep(receiver->timeout);
 
-        while(celix_arrayList_size(receiver->recvBuffer.list) > 0) {
-            celixThreadMutex_lock(&receiver->recvBuffer.mutex);
-            pubsub_websocket_msg_entry_t *msg = (pubsub_websocket_msg_entry_t *) celix_arrayList_get(receiver->recvBuffer.list, 0);
-            celix_arrayList_removeAt(receiver->recvBuffer.list, 0);
-            celixThreadMutex_unlock(&receiver->recvBuffer.mutex);
-
-            processMsg(receiver, msg->msgData, msg->msgSize);
-            free((void *)msg->msgData);
-            free(msg);
-        }
-
-        celixThreadMutex_lock(&receiver->recvThread.mutex);
-        running = receiver->recvThread.running;
-        celixThreadMutex_unlock(&receiver->recvThread.mutex);
+        celixThreadMutex_lock(&receiver->thread.mutex);
+        running = receiver->thread.running;
+        celixThreadMutex_unlock(&receiver->thread.mutex);
 
         celixThreadMutex_lock(&receiver->requestedConnections.mutex);
         allConnected = receiver->requestedConnections.allConnected;
@@ -615,10 +581,11 @@ static void* psa_websocket_recvThread(void * data) {
         allInitialized = receiver->subscribers.allInitialized;
         celixThreadMutex_unlock(&receiver->subscribers.mutex);
     } // while
-
     return NULL;
 }
 
+
+#if NOT
 static void psa_websocketTopicReceiver_ready(struct mg_connection *connection, void *handle) {
     if (handle != NULL) {
         pubsub_websocket_topic_receiver_t *receiver = (pubsub_websocket_topic_receiver_t *) handle;
@@ -703,7 +670,7 @@ static void psa_websocketTopicReceiver_close(const struct mg_connection *connect
         }
     }
 }
-
+#endif
 
 static void psa_websocket_connectToAllRequestedConnections(pubsub_websocket_topic_receiver_t *receiver) {
     celixThreadMutex_lock(&receiver->requestedConnections.mutex);
@@ -712,30 +679,10 @@ static void psa_websocket_connectToAllRequestedConnections(pubsub_websocket_topi
         hash_map_iterator_t iter = hashMapIterator_construct(receiver->requestedConnections.map);
         while (hashMapIterator_hasNext(&iter)) {
             psa_websocket_requested_connection_entry_t *entry = hashMapIterator_nextValue(&iter);
-            if (!entry->connected && !entry->passive) {
-                char errBuf[100] = {0};
-                entry->sockConnection = mg_connect_websocket_client(entry->socketAddress,
-                                                                    (int) entry->socketPort,
-                                                                    0, // No ssl
-                                                                    errBuf,
-                                                                    (size_t) sizeof(errBuf),
-                                                                    entry->uri,
-                                                                    NULL,
-                                                                    psa_websocketTopicReceiver_data,
-                                                                    psa_websocketTopicReceiver_close,
-                                                                    receiver);
-                if(entry->sockConnection != NULL) {
-                    entry->connected = true;
-                    entry->connectRetryCount = 0;
-                } else {
-                    entry->connectRetryCount += 1;
+            if ((entry) && (!entry->connected)) {
+                int rc = pubsub_websocket_handler_connect(entry->parent->socketHandler, entry->url);
+                if (rc < 0) {
                     allConnected = false;
-                    if((entry->connectRetryCount % 10) == 0) {
-                        L_WARN("[PSA_WEBSOCKET] Error connecting to websocket %s:%li/%s. Error: %s",
-                               entry->socketAddress,
-                               entry->socketPort,
-                               entry->uri, errBuf);
-                    }
                 }
             }
         }
@@ -743,6 +690,46 @@ static void psa_websocket_connectToAllRequestedConnections(pubsub_websocket_topi
     }
     celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
 }
+
+static void psa_tcp_connectHandler(void *handle, const char *url, bool lock) {
+    pubsub_websocket_topic_receiver_t *receiver = handle;
+    L_DEBUG("[PSA_TCP] TopicReceiver %s/%s connecting to websocket url %s",
+            receiver->scope == NULL ? "(null)" : receiver->scope,
+            receiver->topic,
+            url);
+    if (lock)
+        celixThreadMutex_lock(&receiver->requestedConnections.mutex);
+    psa_websocket_requested_connection_entry_t *entry = hashMap_get(receiver->requestedConnections.map, url);
+    if (entry == NULL) {
+        entry = calloc(1, sizeof(*entry));
+        entry->parent = receiver;
+        entry->url = strndup(url, 1024 * 1024);
+        entry->statically = true;
+        hashMap_put(receiver->requestedConnections.map, (void *) entry->url, entry);
+        receiver->requestedConnections.allConnected = false;
+    }
+    entry->connected = true;
+    if (lock)
+        celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
+}
+
+static void psa_tcp_disConnectHandler(void *handle, const char *url, bool lock) {
+    pubsub_websocket_topic_receiver_t *receiver = handle;
+    L_DEBUG("[PSA TCP] TopicReceiver %s/%s disconnect from websocket url %s",
+            receiver->scope == NULL ? "(null)" : receiver->scope,
+            receiver->topic,
+            url);
+    if (lock)
+        celixThreadMutex_lock(&receiver->requestedConnections.mutex);
+    psa_websocket_requested_connection_entry_t *entry = hashMap_get(receiver->requestedConnections.map, url);
+    if (entry != NULL) {
+        entry->connected = false;
+        receiver->requestedConnections.allConnected = false;
+    }
+    if (lock)
+        celixThreadMutex_unlock(&receiver->requestedConnections.mutex);
+}
+
 
 static void psa_websocket_initializeAllSubscribers(pubsub_websocket_topic_receiver_t *receiver) {
     celixThreadMutex_lock(&receiver->subscribers.mutex);
@@ -772,4 +759,25 @@ static void psa_websocket_initializeAllSubscribers(pubsub_websocket_topic_receiv
         receiver->subscribers.allInitialized = allInitialized;
     }
     celixThreadMutex_unlock(&receiver->subscribers.mutex);
+}
+
+static bool psa_websocketTopicReceiver_checkVersion(version_pt msgVersion, uint16_t major, uint16_t minor) {
+    bool check = false;
+
+    if (major == 0 && minor == 0) {
+        //no check
+        return true;
+    }
+
+    int versionMajor;
+    int versionMinor;
+    if (msgVersion!=NULL) {
+        version_getMajor(msgVersion, &versionMajor);
+        version_getMinor(msgVersion, &versionMinor);
+        if (major==((unsigned char)versionMajor)) { /* Different major means incompatible */
+            check = (minor>=((unsigned char)versionMinor)); /* Compatible only if the provider has a minor equals or greater (means compatible update) */
+        }
+    }
+
+    return check;
 }

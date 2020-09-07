@@ -22,6 +22,8 @@
 
 #include <pubsub_admin_metrics.h>
 #include "celix_bundle_context.h"
+#include <pubsub_protocol.h>
+#include "pubsub_websocket_common.h"
 
 typedef struct pubsub_websocket_topic_receiver pubsub_websocket_topic_receiver_t;
 
@@ -30,8 +32,11 @@ pubsub_websocket_topic_receiver_t* pubsub_websocketTopicReceiver_create(celix_bu
         const char *scope,
         const char *topic,
         const celix_properties_t *topicProperties,
+        pubsub_websocket_endPointStore_t *endPointStore,
         long serializerSvcId,
-        pubsub_serializer_service_t *serializer);
+        pubsub_serializer_service_t *serializer,
+        long protocolSvcId,
+        pubsub_protocol_service_t *protocol);
 void pubsub_websocketTopicReceiver_destroy(pubsub_websocket_topic_receiver_t *receiver);
 
 const char* pubsub_websocketTopicReceiver_scope(pubsub_websocket_topic_receiver_t *receiver);
@@ -39,9 +44,10 @@ const char* pubsub_websocketTopicReceiver_topic(pubsub_websocket_topic_receiver_
 const char* pubsub_websocketTopicReceiver_url(pubsub_websocket_topic_receiver_t *receiver);
 
 long pubsub_websocketTopicReceiver_serializerSvcId(pubsub_websocket_topic_receiver_t *receiver);
+long pubsub_websocketTopicReceiver_protocolSvcId(pubsub_websocket_topic_receiver_t *receiver);
 void pubsub_websocketTopicReceiver_listConnections(pubsub_websocket_topic_receiver_t *receiver, celix_array_list_t *connectedUrls, celix_array_list_t *unconnectedUrls);
 
-void pubsub_websocketTopicReceiver_connectTo(pubsub_websocket_topic_receiver_t *receiver, const char *socketAddress, long socketPort);
-void pubsub_websocketTopicReceiver_disconnectFrom(pubsub_websocket_topic_receiver_t *receiver, const char *socketAddress, long socketPort);
+void pubsub_websocketTopicReceiver_connectTo(pubsub_websocket_topic_receiver_t *receiver, const char *url);
+void pubsub_websocketTopicReceiver_disconnectFrom(pubsub_websocket_topic_receiver_t *receiver, const char *url);
 
 #endif //CELIX_PUBSUB_WEBSOCKET_TOPIC_RECEIVER_H

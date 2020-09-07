@@ -22,22 +22,15 @@
 
 #include <utils.h>
 #include <stdint.h>
+#include <hash_map.h>
 
-#include "version.h"
-
-
-struct pubsub_websocket_msg_header {
-    const char *id; //FQN
-    uint8_t major;
-    uint8_t minor;
-    uint32_t seqNr;
-};
-
-typedef struct pubsub_websocket_msg_header pubsub_websocket_msg_header_t;
+typedef struct pubsub_websocket_endPointStore {
+  celix_thread_mutex_t mutex;
+  hash_map_t *map;
+} pubsub_websocket_endPointStore_t;
 
 void psa_websocket_setScopeAndTopicFilter(const char* scope, const char *topic, char *filter);
 char *psa_websocket_createURI(const char *scope, const char *topic);
 
-bool psa_websocket_checkVersion(version_pt msgVersion, const pubsub_websocket_msg_header_t *hdr);
 
 #endif //CELIX_PUBSUB_WEBSOCKET_COMMON_H

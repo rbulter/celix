@@ -40,15 +40,48 @@
 #define PUBSUB_WEBSOCKET_PORT_KEY                     "websocket.socket_port"
 
 /**
- * The static url which a subscriber should try to connect to.
- * The urls are space separated
+ * If set true on the endpoint, the tcp TopicSender bind and/or discovery url is statically configured.
  */
-#define PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES    "websocket.static.connect.socket_addresses"
+#define PUBSUB_WEBSOCKET_STATIC_CONFIGURED            "websocket.static.configured"
+
+/**
+ * The websocket url key for the topic sender endpoints
+ */
+#define PUBSUB_WEBSOCKET_URL_KEY                      "websocket.url"
+
+/**
+ * Can be set in the topic properties to fix a static bind url
+ */
+#define PUBSUB_WEBSOCKET_BIND_URI              "websocket.bind.uri"
+
+/**
+ * The static url which a subscriber should try to connect to.
+ * The urls are space separated.
+ * Can be set in the topic properties.
+ */
+#define PUBSUB_WEBSOCKET_STATIC_CONNECT_URLS          "websocket.static.connect.urls"
 
 /**
  * Name of environment variable with space-separated list of ips/urls to connect to
  * e.g. PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES_FOR_topic_scope="tcp://127.0.0.1:4444 tcp://127.0.0.2:4444"
  */
 #define PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES_FOR "PUBSUB_WEBSOCKET_STATIC_CONNECT_SOCKET_ADDRESSES_FOR_"
+
+/**
+ * The static endpoint type which a static endpoint should be configured.
+ * Can be set in the topic properties.
+ */
+#define PUBSUB_WEBSOCKET_STATIC_ENDPOINT_TYPE         "websocket.static.endpoint.type"
+
+#define PUBSUB_WEBSOCKET_STATIC_ENDPOINT_TYPE_SERVER  "server"
+#define PUBSUB_WEBSOCKET_STATIC_ENDPOINT_TYPE_CLIENT  "client"
+
+/**
+ * Realtime thread prio and scheduling information. This is used to setup the thread prio/sched of the
+ * internal TCP threads.
+ * Can be set in the topic properties.
+ */
+#define PUBSUB_WEBSOCKET_THREAD_REALTIME_PRIO         "thread.realtime.prio"
+#define PUBSUB_WEBSOCKET_THREAD_REALTIME_SCHED        "thread.realtime.sched"
 
 #endif /* PUBSUB_PSA_WEBSOCKET_CONSTANTS_H_ */
