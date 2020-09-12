@@ -56,8 +56,8 @@ struct pubsub_websocket_topic_sender {
     pubsub_protocol_service_t *protocol;
     uuid_t fwUUID;
     bool metricsEnabled;
-    pubsub_websocket_handler_t *socketHandler;
-    pubsub_websocket_handler_t *sharedSocketHandler;
+    pubsub_websocketHandler_t *socketHandler;
+    pubsub_websocketHandler_t *sharedSocketHandler;
     pubsub_interceptors_handler_t *interceptorsHandler;
 
     celix_websocket_service_t websockSvc;
@@ -167,10 +167,10 @@ pubsub_websocket_topic_sender_t* pubsub_websocketTopicSender_create(
     if ((staticClientEndPointUirs != NULL) || (staticServerEndPointUri)) {
         celixThreadMutex_lock(&endPointStore->mutex);
         const char *endPointUri = (staticClientEndPointUirs) ? staticClientEndPointUirs : staticServerEndPointUri;
-        pubsub_websocket_handler_t *entry = hashMap_get(endPointStore->map, endPointUri);
+        pubsub_websocketHandler_t *entry = hashMap_get(endPointStore->map, endPointUri);
         if (entry == NULL) {
             if (sender->socketHandler == NULL)
-                sender->socketHandler = pubsub_websocket_handler_create(ctx, sender->protocol, sender->logHelper);
+                sender->socketHandler = pubsub_websocketHandler_create(ctx, sender->protocol, sender->logHelper);
             entry = sender->socketHandler;
             sender->sharedSocketHandler = sender->socketHandler;
             hashMap_put(endPointStore->map, (void *) endPointUri, entry);
@@ -180,14 +180,7 @@ pubsub_websocket_topic_sender_t* pubsub_websocketTopicSender_create(
         }
         celixThreadMutex_unlock(&endPointStore->mutex);
     } else {
-        sender->socketHandler = pubsub_websocket_handler_create(ctx, sender->protocol, sender->logHelper);
-    }
-
-    if ((sender->socketHandler != NULL) && (topicProperties != NULL)) {
-        long prio = celix_properties_getAsLong(topicProperties, PUBSUB_WEBSOCKET_THREAD_REALTIME_PRIO, -1L);
-        const char *sched = celix_properties_get(topicProperties, PUBSUB_WEBSOCKET_THREAD_REALTIME_SCHED, NULL);
-        pubsub_websocket_handler_set_thread_name(sender->socketHandler, topic, scope);
-        pubsub_websocket_handler_set_thread_priority(sender->socketHandler, prio, sched);
+        sender->socketHandler = pubsub_websocketHandler_create(ctx, sender->protocol, sender->logHelper);
     }
 
     //setting up tcp socket for TCP TopicSender
@@ -207,7 +200,7 @@ pubsub_websocket_topic_sender_t* pubsub_websocketTopicSender_create(
         char *save = urlsCopy;
         while ((url = strtok_r(save, " ", &save))) {
             pubsub_utils_url_t *urlInfo = pubsub_utils_url_parse(url);
-            int rc = pubsub_websocket_handler_listen(sender->socketHandler, urlInfo->uri);
+            int rc = pubsub_websocketHandler_listen(sender->socketHandler, urlInfo->uri);
             if (rc < 0) {
                 L_WARN("Error for tcp_bind using dynamic bind url '%s'. %s", urlInfo->url, strerror(errno));
             } else {
@@ -447,7 +440,7 @@ static int psa_websocket_topicPublicationSend(void* handle, unsigned int msgType
             entry->seqNr++;
             bool sendOk = true;
             {
-                int rc = pubsub_websocket_handler_write(sender->socketHandler, &message);
+                int rc = pubsub_websocketHandler_write(sender->socketHandler, &message);
                 if (rc < 0) {
                     status = -1;
                     sendOk = false;

@@ -140,8 +140,8 @@ void pubsub_websocketAdmin_destroy(pubsub_websocket_admin_t *psa) {
     celixThreadMutex_lock(&psa->endpointStore.mutex);
     hash_map_iterator_t iter = hashMapIterator_construct(psa->endpointStore.map);
     while (hashMapIterator_hasNext(&iter)) {
-        pubsub_websocket_handler_t *handler = hashMapIterator_nextValue(&iter);
-        pubsub_websocket_handler_destroy(handler);
+        pubsub_websocketHandler_t *handler = hashMapIterator_nextValue(&iter);
+        pubsub_websocketHandler_destroy(handler);
     }
     celixThreadMutex_unlock(&psa->endpointStore.mutex);
 
@@ -485,7 +485,7 @@ celix_status_t pubsub_websocketAdmin_setupTopicReceiver(void *handle, const char
                                                             &psa->endpointStore, serializerSvcId, serEntry->svc,
                                                             protocolSvcId, protEntry->svc);
         } else {
-            L_ERROR("[PSA_WEBSOCKET] Cannot find serializer or protoco for TopicSender %s/%s", scope == NULL ? "(null)" : scope, topic);
+            L_ERROR("[PSA_WEBSOCKET] Cannot find serializer or protocol for TopicSender %s/%s", scope == NULL ? "(null)" : scope, topic);
         }
         if (receiver != NULL) {
             const char *psaType = PUBSUB_WEBSOCKET_ADMIN_TYPE;

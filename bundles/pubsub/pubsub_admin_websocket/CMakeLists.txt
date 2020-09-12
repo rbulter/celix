@@ -28,6 +28,7 @@ add_celix_bundle(celix_pubsub_admin_websocket
         src/pubsub_websocket_topic_sender.c
         src/pubsub_websocket_topic_receiver.c
         src/pubsub_websocket_common.c
+        src/pubsub_websocket_handler.c
 )
 
 set_target_properties(celix_pubsub_admin_websocket PROPERTIES INSTALL_RPATH "$ORIGIN")

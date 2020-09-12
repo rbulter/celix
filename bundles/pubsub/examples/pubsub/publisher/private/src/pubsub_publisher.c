@@ -86,17 +86,17 @@ static void* send_thread(void* arg) {
             if (publish_svc->send) {
                 celix_properties_t *metadata = celix_properties_create();
                 celix_properties_set(metadata, "Key", "Value");
-                if (publish_svc->send(publish_svc->handle, msgId, place, metadata) == 0) {
-                    printf("Sent %s [%f, %f] (%s, %s) data len = %d\n", st_struct->topic,
-                           place->position.lat, place->position.lon, place->name, place->description, nr_char);
-                }
+                //if (publish_svc->send(publish_svc->handle, msgId, place, metadata) == 0) {
+                    //printf("Sent %s [%f, %f] (%s, %s) data len = %d\n", st_struct->topic,
+                    //       place->position.lat, place->position.lon, place->name, place->description, nr_char);
+                //}
             } else {
                 printf("No send for %s\n", st_struct->topic);
             }
 
             free(place->data);
         }
-        sleep(2);
+        sleep(10);
     }
 
     free(place->description);

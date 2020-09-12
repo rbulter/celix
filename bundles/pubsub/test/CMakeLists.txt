@@ -266,6 +266,7 @@ if (BUILD_PUBSUB_PSA_WS)
                 USE_WEBSOCKETS=true
                 LISTENING_PORTS=8080
             BUNDLES
+                Celix::pubsub_protocol_json_wire
                 Celix::pubsub_serializer_json
                 Celix::http_admin
                 Celix::pubsub_topology_manager
