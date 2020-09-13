@@ -1169,12 +1169,12 @@ int pubsub_tcpHandler_write(pubsub_tcpHandler_t *handle, pubsub_protocol_message
 // get interface URL
 //
 char *pubsub_tcpHandler_get_interface_url(pubsub_tcpHandler_t *handle) {
-    hash_map_iterator_t interface_iter =
+    hash_map_iterator_t iter =
         hashMapIterator_construct(handle->interface_url_map);
     char *url = NULL;
-    while (hashMapIterator_hasNext(&interface_iter)) {
+    while (hashMapIterator_hasNext(&iter)) {
         psa_tcp_connection_entry_t *entry =
-            hashMapIterator_nextValue(&interface_iter);
+            hashMapIterator_nextValue(&iter);
         if (entry && entry->url) {
             if (!url) {
                 url = celix_utils_strdup(entry->url);
@@ -1187,6 +1187,30 @@ char *pubsub_tcpHandler_get_interface_url(pubsub_tcpHandler_t *handle) {
     }
     return url;
 }
+
+//
+// get interface URL
+//
+char *pubsub_tcpHandler_get_connection_url(pubsub_tcpHandler_t *handle) {
+    hash_map_iterator_t iter =
+            hashMapIterator_construct(handle->connection_url_map);
+    char *url = NULL;
+    while (hashMapIterator_hasNext(&iter)) {
+        psa_tcp_connection_entry_t *entry =
+                hashMapIterator_nextValue(&iter);
+        if (entry && entry->url) {
+            if (!url) {
+                url = celix_utils_strdup(entry->url);
+            } else {
+                char *tmp = url;
+                asprintf(&url, "%s %s", tmp, entry->url);
+                free(tmp);
+            }
+        }
+    }
+    return url;
+}
+
 
 //
 // Handle non-blocking accept (sender)

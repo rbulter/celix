@@ -47,7 +47,7 @@ celix_bundle_files(pubsub_endpoint_tst
         DESTINATION "META-INF/descriptors"
         )
 celix_bundle_files(pubsub_endpoint_tst
-        meta_data/ping2.properties
+        meta_data/ping3.properties
         DESTINATION "META-INF/topics/sub"
         )
 
@@ -65,7 +65,7 @@ celix_bundle_files(pubsub_loopback
         DESTINATION "META-INF/descriptors"
         )
 celix_bundle_files(pubsub_loopback
-        meta_data/pong2.properties
+        meta_data/pong3.properties
         DESTINATION "META-INF/topics/pub"
         )
 celix_bundle_files(pubsub_loopback

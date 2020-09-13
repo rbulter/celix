@@ -86,6 +86,7 @@ int pubsub_tcpHandler_addAcceptConnectionCallback(pubsub_tcpHandler_t *handle,
                                                   pubsub_tcpHandler_acceptConnectMessage_callback_t connectMessageCallback,
                                                   pubsub_tcpHandler_acceptConnectMessage_callback_t disconnectMessageCallback);
 char *pubsub_tcpHandler_get_interface_url(pubsub_tcpHandler_t *handle);
+char *pubsub_tcpHandler_get_connection_url(pubsub_tcpHandler_t *handle);
 void pubsub_tcpHandler_setThreadPriority(pubsub_tcpHandler_t *handle, long prio, const char *sched);
 void pubsub_tcpHandler_setThreadName(pubsub_tcpHandler_t *handle, const char *topic, const char *scope);
 

@@ -103,20 +103,19 @@
 #define PUBSUB_TCP_STATIC_CONNECT_URLS          "tcp.static.connect.urls"
 
 /**
+ * If set true on the endpoint, the tcp TopicSender bind and/or discovery url is statically configured.
+ */
+#define PUBSUB_TCP_PASSIVE_ENABLED               "PSA_TCP_PASSIVE_ENABLED_"
+#define PUBSUB_TCP_PASSIVE_SELECTION_KEY         "PSA_TCP_PASSIVE_KEY_"
+#define PUBSUB_TCP_PASSIVE_CONFIGURED            "tcp.passive.configured"
+#define PUBSUB_TCP_PASSIVE_KEY                   "tcp.passive.key"
+
+
+/**
  * Name of environment variable with space-separated list of ips/urls to connect to
  * e.g. PSA_TCP_STATIC_CONNECT_FOR_topic_scope="tcp://127.0.0.1:4444 tcp://127.0.0.2:4444"
  */
 #define PUBSUB_TCP_STATIC_CONNECT_URLS_FOR "PSA_TCP_STATIC_CONNECT_URL_FOR_"
-
-/**
- * The static endpoint type which a static endpoint should be configured.
- * Can be set in the topic properties.
- */
-#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE         "tcp.static.endpoint.type"
-
-#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE_SERVER  "server"
-#define PUBSUB_TCP_STATIC_ENDPOINT_TYPE_CLIENT  "client"
-
 
 /**
  * Realtime thread prio and scheduling information. This is used to setup the thread prio/sched of the
