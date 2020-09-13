@@ -48,7 +48,7 @@ TEST_GROUP(PUBSUB_INT_GROUP) {
 };
 
 TEST(PUBSUB_INT_GROUP, recvTest) {
-    constexpr int TRIES = 50;
+    constexpr int TRIES = 5000;
     constexpr int TIMEOUT = 250000;
     constexpr int MSG_COUNT = 100;
 
@@ -61,11 +61,10 @@ TEST(PUBSUB_INT_GROUP, recvTest) {
             auto* count = static_cast<celix_receive_count_service_t*>(svc);
             *count_ptr = count->receiveCount(count->handle);
         });
-        ///printf("Current msg count is %i, waiting for at least %i\n", count, MSG_COUNT);
+        printf("Current msg count is %i, waiting for at least %i\n", count, MSG_COUNT);
         if (count >= MSG_COUNT) {
             break;
         }
-        while(1);
         usleep(TIMEOUT);
     }
     CHECK(count >= MSG_COUNT);

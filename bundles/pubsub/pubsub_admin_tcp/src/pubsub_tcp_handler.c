@@ -130,7 +130,7 @@ struct pubsub_tcpHandler {
     double rcvTimeout;
     celix_thread_t thread;
     bool running;
-    bool isEndPoint;
+    bool enableReceiveEvent;
     bool isBlocking;
 };
 
@@ -401,8 +401,7 @@ int pubsub_tcpHandler_connect(pubsub_tcpHandler_t *handle, char *url) {
         if ((rc >= 0) && addr) {
             rc = connect(fd, (struct sockaddr *) addr, sizeof(struct sockaddr));
             if (rc < 0 && errno != EINPROGRESS) {
-                L_ERROR("[TCP Socket] Cannot connect to %s:%d: using; %s err(%d): %s\n", url_info->hostname, url_info->port_nr, interface_url, errno,
-                        strerror(errno));
+                L_ERROR("[TCP Socket] Cannot connect to %s:%d: using; %s err(%d): %s\n", url_info->hostname, url_info->port_nr, interface_url, errno, strerror(errno));
                 close(fd);
             } else {
                 entry = pubsub_tcpHandler_createEntry(handle, fd, url, interface_url, &sin);
@@ -751,10 +750,10 @@ void pubsub_tcpHandler_setReceiveTimeOut(pubsub_tcpHandler_t *handle, double tim
     }
 }
 
-void pubsub_tcpHandler_setEndPoint(pubsub_tcpHandler_t *handle,bool isEndPoint) {
+void pubsub_tcpHandler_enableReceiveEvent(pubsub_tcpHandler_t *handle,bool enable) {
     if (handle != NULL) {
         celixThreadRwlock_writeLock(&handle->dbLock);
-        handle->isEndPoint = isEndPoint;
+        handle->enableReceiveEvent = enable;
         celixThreadRwlock_unlock(&handle->dbLock);
     }
 }
@@ -1281,7 +1280,7 @@ int pubsub_tcpHandler_acceptHandler(pubsub_tcpHandler_t *handle, psa_tcp_connect
         struct epoll_event event;
         bzero(&event, sizeof(event)); // zero the struct
         event.events = EPOLLRDHUP | EPOLLERR;
-        if (handle->isEndPoint) event.events |= EPOLLIN;
+        if (handle->enableReceiveEvent) event.events |= EPOLLIN;
         event.data.fd = entry->fd;
         // Register Read to epoll
         rc = epoll_ctl(handle->efd, EPOLL_CTL_ADD, entry->fd, &event);

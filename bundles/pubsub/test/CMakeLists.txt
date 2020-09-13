@@ -31,7 +31,7 @@ celix_bundle_files(pubsub_endpoint_sut
         DESTINATION "META-INF/descriptors"
         )
 celix_bundle_files(pubsub_endpoint_sut
-        meta_data/ping2.properties
+        meta_data/ping3.properties
         DESTINATION "META-INF/topics/pub"
         )
 
@@ -48,7 +48,7 @@ celix_bundle_files(pubsub_endpoint_tst
         )
 celix_bundle_files(pubsub_endpoint_tst
         meta_data/ping3.properties
-        DESTINATION "META-INF/topics/sub"
+        DESTINATION "META-INF/topics/pub"
         )
 
 
@@ -65,11 +65,11 @@ celix_bundle_files(pubsub_loopback
         DESTINATION "META-INF/descriptors"
         )
 celix_bundle_files(pubsub_loopback
-        meta_data/pong3.properties
+        meta_data/pong2.properties
         DESTINATION "META-INF/topics/pub"
         )
 celix_bundle_files(pubsub_loopback
-        meta_data/pong2.properties
+        meta_data/pong3.properties
         DESTINATION "META-INF/topics/sub"
         )
 
@@ -214,9 +214,9 @@ if (BUILD_PUBSUB_PSA_TCP)
             Celix::pubsub_topology_manager
             Celix::pubsub_admin_tcp
             Celix::pubsub_protocol_wire_v2
+            pubsub_endpoint_tst
             pubsub_loopback
             pubsub_endpoint_sut
-            pubsub_endpoint_tst
             )
     target_link_libraries(pubsub_tcp_endpoint_tests PRIVATE Celix::pubsub_api ${CppUTest_LIBRARIES} Jansson Celix::dfi)
     target_include_directories(pubsub_tcp_endpoint_tests SYSTEM PRIVATE ${CppUTest_INCLUDE_DIR} test)

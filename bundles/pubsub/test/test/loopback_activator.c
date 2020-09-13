@@ -55,7 +55,7 @@ celix_status_t bnd_start(struct activator *act, celix_bundle_context_t *ctx) {
   pthread_mutex_init(&act->mutex, NULL);
 
   celix_properties_t *props = celix_properties_create();
-  celix_properties_set(props, PUBSUB_SUBSCRIBER_TOPIC, "pong2");
+  celix_properties_set(props, PUBSUB_SUBSCRIBER_TOPIC, "pong3");
   act->subSvc.handle = act;
   act->subSvc.receive = tst_receive;
   act->subSvcId = celix_bundleContext_registerService(ctx, &act->subSvc, PUBSUB_SUBSCRIBER_SERVICE_NAME, props);
