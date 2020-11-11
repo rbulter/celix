@@ -310,12 +310,12 @@ pubsub_tcpHandler_createEntry(pubsub_tcpHandler_t *handle, int fd, char *url, ch
         celixThreadMutex_create(&entry->writeMutex, NULL);
         celixThreadMutex_create(&entry->readMutex, NULL);
         if (url)
-            entry->url = strndup(url, 1024 * 1024);
+            entry->url = celix_utils_strdup(url);
         if (interface_url) {
-            entry->interface_url = strndup(interface_url, 1024 * 1024);
+            entry->interface_url = celix_utils_strdup(interface_url);
         } else {
             if (url)
-                entry->interface_url = strndup(url, 1024 * 1024);
+                entry->interface_url = celix_utils_strdup(url);
         }
         if (addr)
             entry->addr = *addr;
