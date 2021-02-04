@@ -75,6 +75,8 @@ pubsubEndpoint_isValid(const celix_properties_t *endpointProperties, bool requir
 char *pubsubEndpoint_createScopeTopicKey(const char *scope, const char *topic);
 
 /**
+ * @deprecated Please use pubsub_utils_matchPublisher
+ *
  * Match a publisher for a provided bnd (using the bundleId) and service filter.
  *
  * The match function will try to find a topic properties for the requesting bundle (bundleId) using the topic
@@ -104,6 +106,7 @@ char *pubsubEndpoint_createScopeTopicKey(const char *scope, const char *topic);
  * @param outSerializerSvcId    Output svc id for the matching serializer. If not found will be -1L.
  * @return                      The matching score.
  */
+//__attribute__((__deprecated__))
 double pubsubEndpoint_matchPublisher(
         celix_bundle_context_t *ctx,
         long bundleId,
@@ -118,6 +121,8 @@ double pubsubEndpoint_matchPublisher(
         long *outProtocolSvcId);
 
 /**
+ * @deprecated Please use pubsub_utils_matchSubscriber
+ *
  * Match a subscriber for a provided bnd (using the bundleId) and provided service properties.
  *
  * The match function will try to find a topic properties for the requesting bundle (bundleId) - using topic in the
@@ -147,6 +152,7 @@ double pubsubEndpoint_matchPublisher(
  * @param outSerializerSvcId    Output svc id for the matching serializer. If not found will be -1L.
  * @return                      The matching score.
  */
+//__attribute__((__deprecated__))
 double pubsubEndpoint_matchSubscriber(
         celix_bundle_context_t *ctx,
         long svcProviderBundleId,
@@ -161,6 +167,8 @@ double pubsubEndpoint_matchSubscriber(
         long *outProtocolSvcId);
 
 /**
+ * @deprecated Please use pubsub_utils_matchEndpoint
+ *
  * Match an endpoint (subscriber or publisher endpoint) for the provided admin type.
  *
  * Also tries to found the matching serializer configured in the endpoint.
@@ -172,6 +180,7 @@ double pubsubEndpoint_matchSubscriber(
  *                              configured/found.
  * @return                      true if there is a match.
  */
+//__attribute__((__deprecated__))
 bool pubsubEndpoint_match(
         celix_bundle_context_t *ctx,
         celix_log_helper_t *logHelper,

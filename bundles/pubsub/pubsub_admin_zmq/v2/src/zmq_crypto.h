@@ -16,11 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/**
+ * zmq_crypto.h
+ *
+ *  \date       Dec 2, 2016
+ *  \author     <a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
+ *  \copyright  Apache License, Version 2.0
+ */
 
-#include <gtest/gtest.h>
+#ifndef ZMQ_CRYPTO_H_
+#define ZMQ_CRYPTO_H_
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    int rc = RUN_ALL_TESTS();
-    return rc;
-}
+#include <czmq.h>
+
+#define PROPERTY_KEYS_FILE_PATH "keys.file.path"
+#define PROPERTY_KEYS_FILE_NAME "keys.file.name"
+#define DEFAULT_KEYS_FILE_PATH "/etc/"
+#define DEFAULT_KEYS_FILE_NAME "pubsub.keys"
+
+zcert_t* get_zcert_from_encoded_file(char* keysFilePath, char* keysFileName, char* file_path);
+int generate_sha256_hash(char* text, unsigned char* digest);
+int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *iv, unsigned char *plaintext);
+
+#endif

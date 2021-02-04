@@ -170,10 +170,8 @@ celix_properties_t* pubsubEndpoint_createFromPublisherTrackerInfo(bundle_context
     data.topic = topic;
     celix_bundleContext_useBundle(ctx, bundleId, &data, retrieveTopicProperties);
 
-    if (data.props != NULL) {
-        pubsubEndpoint_setFields(ep, fwUUID, scope, topic, PUBSUB_PUBLISHER_ENDPOINT_TYPE, NULL, NULL, NULL, data.props);
-        celix_properties_destroy(data.props); //safe to delete, properties are copied in pubsubEndpoint_setFields
-    }
+    pubsubEndpoint_setFields(ep, fwUUID, scope, topic, PUBSUB_PUBLISHER_ENDPOINT_TYPE, NULL, NULL, NULL, data.props);
+    celix_properties_destroy(data.props); //safe to delete, properties are copied in pubsubEndpoint_setFields
 
     if (!pubsubEndpoint_isValid(ep, false, false)) {
         celix_properties_destroy(ep);
@@ -225,11 +223,11 @@ bool pubsubEndpoint_isValid(const celix_properties_t *props, bool requireAdminTy
     bool p3 = checkProp(props, PUBSUB_ENDPOINT_TYPE);
     bool p4 = true;
     if (requireAdminType) {
-        checkProp(props, PUBSUB_ENDPOINT_ADMIN_TYPE);
+        p4 = checkProp(props, PUBSUB_ENDPOINT_ADMIN_TYPE);
     }
     bool p5 = true;
     if (requireSerializerType) {
-        checkProp(props, PUBSUB_ENDPOINT_SERIALIZER);
+        p5 = checkProp(props, PUBSUB_ENDPOINT_SERIALIZER);
     }
     bool p6 = checkProp(props, PUBSUB_ENDPOINT_TOPIC_NAME);
     return p1 && p2 && p3 && p4 && p5 && p6;

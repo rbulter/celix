@@ -68,9 +68,6 @@ struct pubsub_serialization_provider {
     //updated serialization services
     long bundleTrackerId;
 
-    pubsub_message_serialization_marker_t markerSvc;
-    long serializationMarkerSvcId;
-
     celix_shell_command_t cmdSvc;
     long cmdSvcId;
 
@@ -483,7 +480,7 @@ static void pubsub_serializationProvider_printEntryDetails(pubsub_serialization_
     fprintf(outStream, "|- %20s = %li\n", "svc id", entry->svcId);
     fprintf(outStream, "|- %20s = %s (bundle id %li)\n", "read from bundle", bndName, entry->readFromBndId);
     fprintf(outStream, "|- %20s = %s\n", "bundle entry name", entry->readFromEntryPath);
-    fprintf(outStream, "|- %20s = %lu\n", "nr of times found", entry->nrOfTimesRead);
+    fprintf(outStream, "|- %20s = %lu\n", "nr of times found", (long unsigned int) entry->nrOfTimesRead);
     fprintf(outStream, "|- %20s = %s\n", "valid", entry->valid ? "true" : "false");
     if (!entry->valid) {
         fprintf(outStream, "|- %20s = %s\n", "invalid reason", entry->invalidReason);
@@ -624,19 +621,6 @@ pubsub_serialization_provider_t *pubsub_serializationProvider_create(
     }
 
     {
-        celix_properties_t* props = celix_properties_create();
-        provider->markerSvc.handle = provider;
-        celix_properties_set(props, PUBSUB_MESSAGE_SERIALIZATION_MARKER_SERIALIZATION_TYPE_PROPERTY, provider->serializationType);
-        celix_properties_setLong(props, OSGI_FRAMEWORK_SERVICE_RANKING, serializationServiceRanking);
-        celix_service_registration_options_t opts = CELIX_EMPTY_SERVICE_REGISTRATION_OPTIONS;
-        opts.svc = &provider->markerSvc;
-        opts.serviceName = PUBSUB_MESSAGE_SERIALIZATION_MARKER_NAME;
-        opts.serviceVersion = PUBSUB_MESSAGE_SERIALIZATION_MARKER_VERSION;
-        opts.properties = props;
-        provider->serializationMarkerSvcId = celix_bundleContext_registerServiceWithOptions(ctx, &opts);
-    }
-
-    {
         provider->cmdSvc.handle = provider;
         provider->cmdSvc.executeCommand = pubsub_serializationProvider_executeCommand;
 
@@ -667,7 +651,6 @@ pubsub_serialization_provider_t *pubsub_serializationProvider_create(
 void pubsub_serializationProvider_destroy(pubsub_serialization_provider_t* provider) {
     if (provider != NULL) {
         celix_bundleContext_stopTracker(provider->ctx, provider->bundleTrackerId);
-        celix_bundleContext_unregisterService(provider->ctx, provider->serializationMarkerSvcId);
         celix_bundleContext_unregisterService(provider->ctx, provider->cmdSvcId);
 
         celixThreadMutex_lock(&provider->mutex);
